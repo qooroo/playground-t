@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10241f">
+<title>Silly Story Maker</title>
+<style>
+  :root {
+    --bg1: #10241f;
+    --bg2: #1d3a2e;
+    --card: rgba(255,255,255,0.06);
+    --accent: #ffd23f;
+    --accent2: #5ee6a8;
+    --text: #f1fff7;
+    --muted: #a9c8b8;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: "Comic Sans MS", "Chalkboard SE", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.55;
+    padding: 18px;
+    display: flex;
+    justify-content: center;
+  }
+  #wrap { width: 100%; max-width: 560px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .topbar a { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .topbar a:hover { color: var(--text); }
+  h1 { font-size: clamp(24px, 7vw, 34px); margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  #panel {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    padding: 22px 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    animation: pop 0.25s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* menu */
+  .story-btn {
+    width: 100%; font-family: inherit; text-align: left;
+    font-size: 18px; color: var(--text);
+    background: rgba(255,255,255,0.07);
+    border: 2px solid rgba(255,255,255,0.14);
+    border-radius: 14px; padding: 16px; margin-bottom: 11px; cursor: pointer;
+    display: flex; align-items: center; gap: 12px;
+    transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  .story-btn:hover { background: rgba(94,230,168,0.15); border-color: var(--accent2); }
+  .story-btn:active { transform: scale(0.98); }
+  .story-btn .e { font-size: 30px; }
+  .story-btn small { display: block; color: var(--muted); font-size: 13px; }
+
+  /* input phase */
+  .progress { height: 8px; background: rgba(255,255,255,0.1); border-radius: 99px; overflow: hidden; margin-bottom: 18px; }
+  .progress > div { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); width: 0; transition: width 0.3s ease; }
+  .qcount { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  .ask { font-size: clamp(22px, 6vw, 28px); margin: 0 0 4px; }
+  .hint { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  input[type=text] {
+    width: 100%; font-family: inherit; font-size: 20px;
+    color: var(--text); background: rgba(0,0,0,0.25);
+    border: 2px solid rgba(255,255,255,0.18); border-radius: 12px;
+    padding: 14px 16px; outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 10px; margin-top: 14px; }
+  button.go {
+    font-family: inherit; font-size: 18px; font-weight: 700;
+    color: #10241f; background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border: none; border-radius: 12px; padding: 14px 18px; cursor: pointer; flex: 1;
+    transition: transform 0.08s ease, filter 0.15s ease;
+  }
+  button.go:hover { filter: brightness(1.05); }
+  button.go:active { transform: scale(0.98); }
+  button.go:disabled { opacity: 0.45; cursor: default; filter: none; transform: none; }
+
+  /* reveal */
+  .badge {
+    display: inline-block; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #10241f; font-weight: 700; padding: 7px 14px; border-radius: 999px; margin-bottom: 14px; font-size: 14px;
+  }
+  #story { font-size: clamp(18px, 4.8vw, 21px); margin: 0 0 20px; }
+  #story .fill { color: var(--accent); font-weight: 700; }
+  button.again {
+    font-family: inherit; font-size: 17px; font-weight: 700;
+    border-radius: 12px; padding: 13px; cursor: pointer; width: 100%; margin-top: 10px;
+    transition: transform 0.08s ease, filter 0.15s ease;
+  }
+  button.again.primary { color: #10241f; background: linear-gradient(135deg, var(--accent2), var(--accent)); border: none; }
+  button.again.secondary { color: var(--text); background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.16); }
+  button.again:active { transform: scale(0.98); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="topbar"><a href="index.html">← All games</a><span></span></div>
+  <h1>📝 Silly Story Maker</h1>
+  <div class="sub">Give me some words. Don't peek at the story first — that's the fun part!</div>
+  <div id="panel"></div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Word types: friendly label + hint + example placeholder
+  const TYPES = {
+    adjective:   { label: "an adjective", hint: "a describing word", eg: "smelly" },
+    adjective2:  { label: "another adjective", hint: "a describing word", eg: "sparkly" },
+    noun:        { label: "a noun", hint: "a thing", eg: "banana" },
+    noun2:       { label: "another noun", hint: "a thing", eg: "spoon" },
+    plural:      { label: "a plural noun", hint: "more than one thing", eg: "socks" },
+    verb:        { label: "a verb", hint: "an action word", eg: "jump" },
+    verbing:     { label: "a verb ending in -ing", hint: "an action word ending in -ing", eg: "dancing" },
+    animal:      { label: "an animal", hint: "any animal", eg: "giraffe" },
+    name:        { label: "a name", hint: "a person's name", eg: "Mr. Bobblewort" },
+    number:      { label: "a number", hint: "any number", eg: "7" },
+    food:        { label: "a food", hint: "something you eat", eg: "pizza" },
+    exclamation: { label: "an exclamation", hint: "something you shout", eg: "Yikes" },
+  };
+
+  // Stories: array of strings (text) and {t: typeKey} (blanks)
+  const STORIES = [
+    {
+      emoji: "🏫", title: "A Normal Day at School", desc: "Spoiler: it is not normal.",
+      parts: [
+        "This morning my teacher walked into class wearing a ",
+        {t:"adjective"}, " ", {t:"noun"}, " on her head.\n\n'Class,' she announced, 'today we are going to learn how to ",
+        {t:"verb"}, " like a ", {t:"animal"}, "!'\n\nSo we all started ",
+        {t:"verbing"}, " around the room and knocked over ", {t:"plural"},
+        ". Just then the principal burst in holding a giant ", {t:"food"},
+        " and yelled, '", {t:"exclamation"}, "!'\n\nHonestly? Best day ever.",
+      ],
+    },
+    {
+      emoji: "🐉", title: "My Pet Dragon", desc: "Every kid needs one.",
+      parts: [
+        "For my birthday I got a pet dragon named ", {t:"name"}, ".\n\nIt is ",
+        {t:"number"}, " feet tall and smells exactly like ", {t:"food"},
+        ". Every morning it likes to ", {t:"verb"}, " on my ", {t:"noun"},
+        " until I feed it a big bowl of ", {t:"plural"},
+        ".\n\nWhen it gets excited it breathes ", {t:"adjective"},
+        " fire and shouts, '", {t:"exclamation"},
+        "!' My mom says it is the most ", {t:"adjective2"}, " pet we have ever owned.",
+      ],
+    },
+    {
+      emoji: "🥪", title: "The Grossest Sandwich", desc: "Do NOT try this at home.",
+      parts: [
+        "Today I built the world's most ", {t:"adjective"}, " sandwich.\n\nFirst I grabbed two slices of ",
+        {t:"noun"}, ". Then I piled on ", {t:"number"}, " slices of ", {t:"food"},
+        ", a big spoonful of ", {t:"plural"}, ", and one slightly used ", {t:"noun2"},
+        ".\n\nI squished it together and took a giant bite. It tasted like a ", {t:"animal"},
+        " that had been ", {t:"verbing"}, " in a trash can.\n\n'", {t:"exclamation"},
+        "!' I yelled. Then I immediately made another one.",
+      ],
+    },
+  ];
+
+  const panel = document.getElementById("panel");
+  let story = null, blanks = [], answers = [], idx = 0;
+
+  function showMenu() {
+    story = null;
+    panel.innerHTML = "";
+    const heading = document.createElement("p");
+    heading.style.marginTop = "0";
+    heading.style.fontSize = "18px";
+    heading.textContent = "Pick a story:";
+    panel.appendChild(heading);
+
+    STORIES.forEach((s, i) => {
+      const b = document.createElement("button");
+      b.className = "story-btn";
+      b.innerHTML = `<span class="e">${s.emoji}</span><span>${s.title}<small>${s.desc}</small></span>`;
+      b.onclick = () => startStory(i);
+      panel.appendChild(b);
+    });
+
+    const surprise = document.createElement("button");
+    surprise.className = "story-btn";
+    surprise.innerHTML = `<span class="e">🎲</span><span>Surprise me!<small>pick a random story</small></span>`;
+    surprise.onclick = () => startStory(Math.floor(Math.random() * STORIES.length));
+    panel.appendChild(surprise);
+
+    bump();
+  }
+
+  function startStory(i) {
+    story = STORIES[i];
+    blanks = story.parts.filter(p => typeof p === "object");
+    answers = new Array(blanks.length).fill("");
+    idx = 0;
+    askWord();
+  }
+
+  function askWord() {
+    const blank = blanks[idx];
+    const type = TYPES[blank.t];
+    panel.innerHTML = "";
+
+    const prog = document.createElement("div");
+    prog.className = "progress";
+    const fill = document.createElement("div");
+    fill.style.width = ((idx) / blanks.length * 100) + "%";
+    prog.appendChild(fill);
+    panel.appendChild(prog);
+
+    const count = document.createElement("div");
+    count.className = "qcount";
+    count.textContent = `Word ${idx + 1} of ${blanks.length}`;
+    panel.appendChild(count);
+
+    const ask = document.createElement("p");
+    ask.className = "ask";
+    ask.textContent = "Give me " + type.label;
+    panel.appendChild(ask);
+
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = type.hint + " — for example: " + type.eg;
+    panel.appendChild(hint);
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = answers[idx] || "";
+    input.placeholder = type.eg;
+    input.autocomplete = "off";
+    input.autocapitalize = "off";
+    input.spellcheck = false;
+    panel.appendChild(input);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    if (idx > 0) {
+      const back = document.createElement("button");
+      back.className = "go";
+      back.style.flex = "0 0 auto";
+      back.style.background = "rgba(255,255,255,0.1)";
+      back.style.color = "var(--text)";
+      back.textContent = "← Back";
+      back.onclick = () => { answers[idx] = input.value.trim(); idx--; askWord(); };
+      row.appendChild(back);
+    }
+    const next = document.createElement("button");
+    next.className = "go";
+    next.textContent = idx === blanks.length - 1 ? "✨ Make my story!" : "Next →";
+    row.appendChild(next);
+    panel.appendChild(row);
+
+    function submit() {
+      const val = input.value.trim();
+      if (!val) { input.focus(); next.disabled = true; return; }
+      answers[idx] = val;
+      if (idx === blanks.length - 1) { reveal(); }
+      else { idx++; askWord(); }
+    }
+    next.onclick = submit;
+    input.addEventListener("input", () => { next.disabled = !input.value.trim(); });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    next.disabled = !input.value.trim();
+
+    bump();
+    input.focus();
+  }
+
+  function reveal() {
+    panel.innerHTML = "";
+
+    const badge = document.createElement("div");
+    badge.className = "badge";
+    badge.textContent = story.emoji + " " + story.title;
+    panel.appendChild(badge);
+
+    const p = document.createElement("p");
+    p.id = "story";
+    let bi = 0;
+    story.parts.forEach(part => {
+      if (typeof part === "string") {
+        p.appendChild(document.createTextNode(part));
+      } else {
+        const span = document.createElement("span");
+        span.className = "fill";
+        span.textContent = answers[bi++];
+        p.appendChild(span);
+      }
+    });
+    panel.appendChild(p);
+
+    const redo = document.createElement("button");
+    redo.className = "again primary";
+    redo.textContent = "🔁 Same story, new words";
+    redo.onclick = () => startStory(STORIES.indexOf(story));
+    panel.appendChild(redo);
+
+    const other = document.createElement("button");
+    other.className = "again secondary";
+    other.textContent = "📚 Pick a different story";
+    other.onclick = showMenu;
+    panel.appendChild(other);
+
+    bump();
+  }
+
+  function bump() {
+    panel.style.animation = "none"; void panel.offsetWidth; panel.style.animation = "";
+  }
+
+  showMenu();
+})();
+</script>
+</body>
+</html>
