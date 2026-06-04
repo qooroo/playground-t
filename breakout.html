@@ -9,7 +9,6 @@
   :root {
     --bg: #05080f;
     --cyan: #36e0ff;
-    --cyan-dim: #0e2a35;
     --text: #cdeefb;
     --muted: #4a7c8c;
   }
@@ -57,8 +56,10 @@
   }
   #overlay p { margin: 0; color: var(--text); font-size: 15px; line-height: 1.6; letter-spacing: 1px; }
   #overlay .big { font-size: 22px; color: var(--cyan); font-weight: 700; text-shadow: 0 0 10px var(--cyan); }
+  #overlay .legend { font-size: 12px; color: var(--muted); line-height: 1.9; letter-spacing: 0.5px; }
+  #overlay .legend b { color: var(--text); }
   .pulse { animation: pulse 1.5s ease-in-out infinite; }
-  @keyframes pulse { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+  @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
 </style>
 </head>
 <body>
@@ -74,6 +75,9 @@
     <div id="overlay">
       <h1>BREAKOUT</h1>
       <p id="msg" class="pulse">Tap to launch<br><span style="font-size:13px;color:#4a7c8c">Drag or arrow keys to move</span></p>
+      <p class="legend">Catch the falling capsules:<br>
+        <b style="color:#36e0ff">W</b> wider paddle &nbsp; <b style="color:#ff4fd8">M</b> multi-ball<br>
+        <b style="color:#18e0c0">S</b> slow-mo &nbsp; <b style="color:#ffae34">+</b> extra life</p>
     </div>
   </div>
 </div>
@@ -84,12 +88,24 @@
 
   // Logical coordinate space (scaled to fit the screen)
   const W = 320, H = 440;
-  const PADDLE_W = 60, PADDLE_H = 10, PADDLE_Y = H - 26;
+  const BASE_PADDLE_W = 60, WIDE_PADDLE_W = 100, PADDLE_H = 10, PADDLE_Y = H - 26;
   const BALL_R = 5;
-  const COLS = 8, ROWS = 5, GAP = 4, SIDE = 8, TOP = 46, BRICK_H = 14;
+  const COLS = 8, ROWS = 5, GAP = 4, SIDE = 8, TOP = 50, BRICK_H = 14;
   const BRICK_W = (W - 2 * SIDE - (COLS - 1) * GAP) / COLS;
   const ROW_COLORS = ["#36e0ff", "#18e0c0", "#ffae34", "#ff4fd8", "#b388ff"];
-  const MAX_BOUNCE = 1.05; // radians (~60°) off paddle center
+  const MAX_BOUNCE = 1.05;        // radians (~60°) off paddle center
+  const DROP_CHANCE = 0.16;       // chance a smashed brick drops a power-up
+  const CAP_W = 22, CAP_H = 12, CAP_SPEED = 1.8;
+  const SLOW_MUL = 0.62, EFFECT_MS = 8000, MAX_BALLS = 6;
+
+  const PU = {
+    wide:  { color: "#36e0ff", letter: "W", weight: 30, name: "Wide paddle" },
+    multi: { color: "#ff4fd8", letter: "M", weight: 30, name: "Multi-ball" },
+    slow:  { color: "#18e0c0", letter: "S", weight: 24, name: "Slow-mo" },
+    life:  { color: "#ffae34", letter: "+", weight: 16, name: "Extra life" },
+  };
+  const PU_KEYS = Object.keys(PU);
+  const PU_TOTAL = PU_KEYS.reduce((s, k) => s + PU[k].weight, 0);
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -99,9 +115,10 @@
   const levelEl = document.getElementById("level");
   const livesEl = document.getElementById("lives");
 
-  let paddleX, ball, bricks, score, best, lives, level, speed, trail;
+  let paddleX, paddleW, balls, bricks, caps, score, best, lives, level, speed;
+  let wideUntil = 0, slowUntil = 0, slowActive = false, nowMs = 0;
   let state = "ready";   // ready | playing | dead
-  let last = 0, raf = null;
+  let raf = null;
   const keys = { left: false, right: false };
 
   best = parseInt(localStorage.getItem("breakout_best") || "0", 10) || 0;
@@ -111,7 +128,6 @@
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     canvas.width = size * dpr;
     canvas.height = size * (H / W) * dpr;
-    // scale logical W×H to pixel canvas
     ctx.setTransform((size / W) * dpr, 0, 0, (size / W) * dpr, 0, 0);
     draw();
   }
@@ -134,24 +150,28 @@
   }
 
   function newGame() {
-    score = 0; lives = 3; level = 1;
-    speed = 3.6;
+    score = 0; lives = 3; level = 1; speed = 3.6;
     paddleX = W / 2;
     buildBricks();
-    resetBall();
+    resetBalls();
     updateHUD();
   }
 
-  function resetBall() {
-    ball = { x: paddleX, y: PADDLE_Y - BALL_R - 1, vx: 0, vy: 0 };
-    trail = [];
+  // Reset to a single ball on the paddle and clear all in-flight stuff/effects
+  function resetBalls() {
+    balls = [{ x: paddleX, y: PADDLE_Y - BALL_R - 1, vx: 0, vy: 0, trail: [] }];
+    caps = [];
+    wideUntil = 0; slowUntil = 0; slowActive = false;
+    paddleW = BASE_PADDLE_W;
     state = "ready";
   }
 
   function launch() {
-    const angle = (Math.random() * 0.5 - 0.25); // small spread around straight up
-    ball.vx = speed * Math.sin(angle);
-    ball.vy = -speed * Math.cos(angle);
+    if (state !== "ready" || !balls.length) return;
+    const angle = (Math.random() * 0.5 - 0.25);
+    const sp = speed * (slowActive ? SLOW_MUL : 1);
+    balls[0].vx = sp * Math.sin(angle);
+    balls[0].vy = -sp * Math.cos(angle);
     state = "playing";
     overlay.classList.add("hidden");
   }
@@ -163,10 +183,9 @@
   }
 
   function loseLife() {
-    lives--;
-    updateHUD();
+    lives--; updateHUD();
     if (lives <= 0) { gameOver(); return; }
-    resetBall();
+    resetBalls();
     showOverlay('<span class="big">Ball lost</span><br>' + lives + ' left<br><span style="font-size:13px;color:#4a7c8c">Tap to launch</span>');
   }
 
@@ -180,7 +199,7 @@
     level++;
     speed = Math.min(6.5, speed + 0.4);
     buildBricks();
-    resetBall();
+    resetBalls();
     updateHUD();
     showOverlay('<span class="big">LEVEL ' + level + '</span><br><span style="font-size:13px;color:#4a7c8c">Tap to launch</span>');
   }
@@ -191,43 +210,84 @@
     overlay.classList.remove("hidden");
   }
 
-  // --- physics ---
-  function movePaddle(dt) {
-    if (keys.left) paddleX -= 6;
-    if (keys.right) paddleX += 6;
-    paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, paddleX));
-    if (state === "ready") { ball.x = paddleX; ball.y = PADDLE_Y - BALL_R - 1; }
+  // --- power-ups ---
+  function pickPU() {
+    let r = Math.random() * PU_TOTAL;
+    for (const k of PU_KEYS) { if ((r -= PU[k].weight) < 0) return k; }
+    return PU_KEYS[0];
   }
 
-  function stepBall() {
-    // substep to avoid tunnelling through bricks at speed
+  function maybeDrop(b) {
+    if (Math.random() < DROP_CHANCE) {
+      caps.push({ x: b.x + b.w / 2 - CAP_W / 2, y: b.y, type: pickPU() });
+    }
+  }
+
+  function applyPU(type) {
+    if (type === "wide") wideUntil = nowMs + EFFECT_MS;
+    else if (type === "slow") slowUntil = nowMs + EFFECT_MS;
+    else if (type === "life") { lives++; updateHUD(); }
+    else if (type === "multi") {
+      const extra = [];
+      for (const b of balls) {
+        if (b.vx === 0 && b.vy === 0) continue; // skip a ball resting on the paddle
+        for (const a of [0.4, -0.4]) {
+          if (balls.length + extra.length >= MAX_BALLS) break;
+          const c = Math.cos(a), s = Math.sin(a);
+          extra.push({ x: b.x, y: b.y, vx: b.vx * c - b.vy * s, vy: b.vx * s + b.vy * c, trail: [] });
+        }
+      }
+      balls.push(...extra);
+    }
+  }
+
+  function updateCaps() {
+    for (const cap of caps) {
+      cap.y += CAP_SPEED;
+      const caught = cap.y + CAP_H >= PADDLE_Y && cap.y <= PADDLE_Y + PADDLE_H &&
+        cap.x + CAP_W >= paddleX - paddleW / 2 && cap.x <= paddleX + paddleW / 2;
+      if (caught) { applyPU(cap.type); cap.dead = true; }
+      else if (cap.y > H) cap.dead = true;
+    }
+    caps = caps.filter(c => !c.dead);
+  }
+
+  // --- physics ---
+  function movePaddle() {
+    if (keys.left) paddleX -= 6;
+    if (keys.right) paddleX += 6;
+    paddleX = Math.max(paddleW / 2, Math.min(W - paddleW / 2, paddleX));
+    if (state === "ready" && balls.length) { balls[0].x = paddleX; balls[0].y = PADDLE_Y - BALL_R - 1; }
+  }
+
+  // Move one ball with sub-steps; returns false if it fell off the bottom.
+  function stepBall(ball) {
     const dist = Math.hypot(ball.vx, ball.vy);
     const steps = Math.max(1, Math.ceil(dist / (BALL_R * 0.8)));
     for (let s = 0; s < steps; s++) {
       ball.x += ball.vx / steps;
       ball.y += ball.vy / steps;
 
-      // walls
       if (ball.x - BALL_R < 0) { ball.x = BALL_R; ball.vx = Math.abs(ball.vx); }
       else if (ball.x + BALL_R > W) { ball.x = W - BALL_R; ball.vx = -Math.abs(ball.vx); }
       if (ball.y - BALL_R < 0) { ball.y = BALL_R; ball.vy = Math.abs(ball.vy); }
 
       // paddle
       if (ball.vy > 0 && ball.y + BALL_R >= PADDLE_Y && ball.y + BALL_R <= PADDLE_Y + PADDLE_H + 4 &&
-          ball.x >= paddleX - PADDLE_W / 2 - BALL_R && ball.x <= paddleX + PADDLE_W / 2 + BALL_R) {
-        const hit = Math.max(-1, Math.min(1, (ball.x - paddleX) / (PADDLE_W / 2)));
+          ball.x >= paddleX - paddleW / 2 - BALL_R && ball.x <= paddleX + paddleW / 2 + BALL_R) {
+        const hit = Math.max(-1, Math.min(1, (ball.x - paddleX) / (paddleW / 2)));
         const angle = hit * MAX_BOUNCE;
-        ball.vx = speed * Math.sin(angle);
-        ball.vy = -Math.abs(speed * Math.cos(angle));
+        const sp = speed * (slowActive ? SLOW_MUL : 1);
+        ball.vx = sp * Math.sin(angle);
+        ball.vy = -Math.abs(sp * Math.cos(angle));
         ball.y = PADDLE_Y - BALL_R - 0.5;
       }
 
-      // bricks (one hit per substep)
+      // bricks (one hit per sub-step)
       for (const b of bricks) {
         if (!b.alive) continue;
         if (ball.x + BALL_R < b.x || ball.x - BALL_R > b.x + b.w ||
             ball.y + BALL_R < b.y || ball.y - BALL_R > b.y + b.h) continue;
-        // overlap on each side; smallest = collision normal
         const oL = (ball.x + BALL_R) - b.x;
         const oR = (b.x + b.w) - (ball.x - BALL_R);
         const oT = (ball.y + BALL_R) - b.y;
@@ -239,31 +299,47 @@
         else { ball.vy = Math.abs(ball.vy); ball.y = b.y + b.h + BALL_R; }
         b.alive = false;
         score += b.points;
+        maybeDrop(b);
         updateHUD();
         break;
       }
 
-      // bottom = lose life
-      if (ball.y - BALL_R > H) { loseLife(); return; }
+      if (ball.y - BALL_R > H) return false;
     }
-
-    if (bricks.every(b => !b.alive)) levelUp();
+    return true;
   }
 
   function update() {
-    movePaddle();
-    if (state === "playing") {
-      trail.push({ x: ball.x, y: ball.y });
-      if (trail.length > 10) trail.shift();
-      stepBall();
+    // timed paddle width
+    paddleW = nowMs < wideUntil ? WIDE_PADDLE_W : BASE_PADDLE_W;
+
+    // slow-mo transition: rescale all live ball velocities once on enter/exit
+    const wantSlow = nowMs < slowUntil;
+    if (wantSlow !== slowActive) {
+      const f = wantSlow ? SLOW_MUL : 1 / SLOW_MUL;
+      for (const b of balls) { b.vx *= f; b.vy *= f; }
+      slowActive = wantSlow;
     }
+
+    movePaddle();
+
+    if (state !== "playing") return;
+
+    for (const b of balls) {
+      b.trail.push({ x: b.x, y: b.y });
+      if (b.trail.length > 10) b.trail.shift();
+    }
+    balls = balls.filter(b => stepBall(b));
+
+    if (!balls.length) { loseLife(); return; }
+    updateCaps();
+    if (bricks.every(b => !b.alive)) levelUp();
   }
 
   // --- rendering ---
   function draw() {
     ctx.clearRect(0, 0, W, H);
 
-    // grid
     ctx.strokeStyle = "rgba(54,224,255,0.06)";
     ctx.lineWidth = 1;
     for (let x = 0; x <= W; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
@@ -271,7 +347,6 @@
 
     if (!bricks) return;
 
-    // bricks — dark fill, neon outline + glow (Tron look)
     for (const b of bricks) {
       if (!b.alive) continue;
       ctx.shadowColor = b.color; ctx.shadowBlur = 8;
@@ -282,33 +357,64 @@
     }
     ctx.shadowBlur = 0;
 
-    // ball trail
-    if (trail) {
-      for (let i = 0; i < trail.length; i++) {
-        const t = trail[i];
-        ctx.globalAlpha = (i / trail.length) * 0.5;
+    // falling power-up capsules
+    for (const cap of caps) {
+      const p = PU[cap.type];
+      ctx.shadowColor = p.color; ctx.shadowBlur = 10;
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      roundRect(cap.x, cap.y, CAP_W, CAP_H, 4); ctx.fill();
+      ctx.strokeStyle = p.color; ctx.lineWidth = 1.5;
+      roundRect(cap.x + 0.75, cap.y + 0.75, CAP_W - 1.5, CAP_H - 1.5, 3.5); ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = p.color;
+      ctx.font = "bold 9px 'Segoe UI', sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(p.letter, cap.x + CAP_W / 2, cap.y + CAP_H / 2 + 0.5);
+    }
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+
+    // balls + trails
+    const ballColor = slowActive ? "#9af7d8" : "#eafcff";
+    for (const ball of balls) {
+      for (let i = 0; i < ball.trail.length; i++) {
+        const t = ball.trail[i];
+        ctx.globalAlpha = (i / ball.trail.length) * 0.5;
         ctx.fillStyle = "#36e0ff";
-        ctx.beginPath(); ctx.arc(t.x, t.y, BALL_R * (i / trail.length), 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(t.x, t.y, BALL_R * (i / ball.trail.length), 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
-    }
-
-    // ball
-    if (ball) {
       ctx.shadowColor = "#aef3ff"; ctx.shadowBlur = 14;
-      ctx.fillStyle = "#eafcff";
+      ctx.fillStyle = ballColor;
       ctx.beginPath(); ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
     }
 
-    // paddle — glowing cyan bar
+    // paddle
     ctx.shadowColor = "#36e0ff"; ctx.shadowBlur = 16;
     ctx.fillStyle = "#36e0ff";
-    const px = paddleX - PADDLE_W / 2;
-    roundRect(px, PADDLE_Y, PADDLE_W, PADDLE_H, 4); ctx.fill();
+    const px = paddleX - paddleW / 2;
+    roundRect(px, PADDLE_Y, paddleW, PADDLE_H, 4); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(255,255,255,0.7)";
-    roundRect(px + 6, PADDLE_Y + 3, PADDLE_W - 12, 2, 1); ctx.fill();
+    roundRect(px + 6, PADDLE_Y + 3, paddleW - 12, 2, 1); ctx.fill();
+
+    // active-effect chips (top strip)
+    let ex = 8;
+    ctx.font = "bold 9px 'Segoe UI', sans-serif"; ctx.textBaseline = "middle";
+    if (nowMs < wideUntil) ex = effectChip("WIDE", PU.wide.color, ex);
+    if (nowMs < slowUntil) ex = effectChip("SLOW", PU.slow.color, ex);
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function effectChip(label, color, x) {
+    const w = ctx.measureText(label).width + 12;
+    ctx.shadowColor = color; ctx.shadowBlur = 6;
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    roundRect(x, 6, w, 14, 4); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = color;
+    ctx.fillText(label, x + 6, 13.5);
+    return x + w + 6;
   }
 
   function roundRect(x, y, w, h, r) {
@@ -323,8 +429,7 @@
 
   function loop(now) {
     raf = requestAnimationFrame(loop);
-    if (!last) last = now;
-    last = now;
+    nowMs = now;
     update();
     draw();
   }
@@ -333,12 +438,13 @@
   function pointerToPaddle(clientX) {
     const rect = canvas.getBoundingClientRect();
     const lx = ((clientX - rect.left) / rect.width) * W;
-    paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, lx));
-    if (state === "ready") ball.x = paddleX;
+    paddleX = Math.max(paddleW / 2, Math.min(W - paddleW / 2, lx));
+    if (state === "ready" && balls.length) balls[0].x = paddleX;
   }
 
   function tap() {
-    if (state === "dead") { newGame(); overlay.classList.add("hidden"); state = "ready"; }
+    if (state === "dead") { newGame(); overlay.classList.add("hidden"); }
+    else if (state === "paused") { state = "playing"; overlay.classList.add("hidden"); }
     else if (state === "ready") { launch(); }
   }
 
@@ -360,11 +466,12 @@
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && state === "playing") {
-      state = "ready";
-      showOverlay('<span class="big">Paused</span><br><span style="font-size:13px;color:#4a7c8c">Tap to launch</span>');
+      state = "paused";   // freeze balls in place; resume with a tap
+      showOverlay('<span class="big">Paused</span><br><span style="font-size:13px;color:#4a7c8c">Tap to resume</span>');
     }
   });
 
+  paddleW = BASE_PADDLE_W;
   newGame();
   resize();
   raf = requestAnimationFrame(loop);
