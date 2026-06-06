@@ -90,6 +90,26 @@
   .legend b { font-size:1.4rem; }
   .hi { color:var(--yellow); font-weight:700; }
 
+  /* big green stink cloud — fills the whole play area on a sock catch */
+  .smoke {
+    position:absolute; inset:0; pointer-events:none; z-index:4;
+    display:flex; align-items:center; justify-content:center;
+    font-size:clamp(3rem,20vw,7rem);
+    background:
+      radial-gradient(circle at 30% 72%, rgba(140,255,60,.95), transparent 46%),
+      radial-gradient(circle at 72% 62%, rgba(70,210,0,.9), transparent 50%),
+      radial-gradient(circle at 52% 84%, rgba(170,255,90,.85), transparent 55%),
+      radial-gradient(circle at 50% 50%, rgba(90,190,0,.8), transparent 72%);
+    filter:blur(5px);
+    animation:greenpuff 1.3s ease-out forwards;
+  }
+  @keyframes greenpuff {
+    0%   { opacity:0;  transform:scale(.35); }
+    18%  { opacity:.97; transform:scale(1.08); }
+    60%  { opacity:.9;  transform:scale(1.14); }
+    100% { opacity:0;  transform:scale(1.3); }
+  }
+
   .shake { animation:shake .3s; }
   @keyframes shake {
     0%,100%{transform:translate(0,0);} 20%{transform:translate(-8px,4px);}
@@ -254,6 +274,15 @@
     setTimeout(()=>el.remove(), 1000);
   }
 
+  // big green stink cloud over the whole stage (sock = extra eww)
+  function greenSmoke() {
+    const s = document.createElement('div');
+    s.className = 'smoke';
+    s.textContent = '🤢';
+    stage.appendChild(s);
+    setTimeout(()=>s.remove(), 1300);
+  }
+
   // ---------- spawning ----------
   function spawn() {
     const bad = Math.random() < Math.min(0.18 + elapsed/120000, 0.40); // baddies ramp up
@@ -313,6 +342,7 @@
       badSound();
       popup(pick(it.def.cry), sx, sy, '#ff5c8a');
       stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake');
+      if (it.def.emoji === '🧦') greenSmoke();   // the sock is extra gross
       if (lives <= 0) return gameOver();
     } else {
       combo++;
