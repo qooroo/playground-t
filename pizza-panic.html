@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🍕 Pizza Panic — Theo's Arcade</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Fredoka:wght@500;700&display=swap');
+
+  :root {
+    --pink:#ff2bd6; --cyan:#00f0ff; --yellow:#ffe600; --lime:#7cff00;
+    --orange:#ff8a00; --ink:#11002b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family:'Fredoka', system-ui, sans-serif; color:#fff;
+    background:
+      radial-gradient(circle at 25% 15%, rgba(255,138,0,.35), transparent 45%),
+      radial-gradient(circle at 80% 25%, rgba(255,43,214,.30), transparent 45%),
+      linear-gradient(135deg,#2d0052,#1a0033 60%,#11002b);
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100%; overflow:hidden; touch-action:none;
+    user-select:none; -webkit-user-select:none;
+  }
+
+  .topbar {
+    width:100%; max-width:560px; display:flex; align-items:center;
+    justify-content:space-between; padding:.7rem 1rem .3rem; gap:.5rem;
+  }
+  .topbar a { color:var(--cyan); text-decoration:none; font-weight:700; font-size:.95rem; text-shadow:0 0 8px var(--cyan); }
+  .topbar a:hover { color:var(--yellow); text-shadow:0 0 8px var(--yellow); }
+  h1 {
+    font-family:'Bungee', sans-serif; font-size:clamp(1.3rem,5vw,2rem);
+    background:linear-gradient(90deg,var(--yellow),var(--orange),var(--pink));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 10px rgba(255,138,0,.6)); white-space:nowrap;
+  }
+  .mute { background:none; border:none; cursor:pointer; font-size:1.4rem; filter:grayscale(0); }
+  .mute.off { opacity:.45; }
+
+  .hud {
+    width:100%; max-width:560px; display:flex; justify-content:space-between;
+    align-items:center; padding:.2rem 1rem .5rem; font-weight:700; font-size:1.05rem;
+  }
+  .hud .score { color:var(--lime); text-shadow:0 0 8px var(--lime); }
+  .hud .combo { color:var(--yellow); text-shadow:0 0 8px var(--yellow); min-height:1.2em; transition:transform .1s; }
+  .hud .lives { letter-spacing:2px; }
+
+  .stage {
+    position:relative; width:100%; max-width:560px; flex:1;
+    margin:0 .5rem; border:4px solid var(--cyan); border-radius:18px;
+    box-shadow:0 0 28px rgba(0,240,255,.4), inset 0 0 40px rgba(0,0,0,.35);
+    overflow:hidden; background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(0,0,0,.15));
+  }
+  canvas { display:block; width:100%; height:100%; }
+
+  /* floating "+points" / message popups */
+  .popup {
+    position:absolute; font-family:'Bungee',sans-serif; font-weight:400;
+    pointer-events:none; white-space:nowrap; transform:translate(-50%,-50%);
+    animation:floatUp 1s ease-out forwards; text-shadow:0 2px 6px rgba(0,0,0,.6);
+  }
+  @keyframes floatUp {
+    0%{opacity:0; transform:translate(-50%,-50%) scale(.6);}
+    20%{opacity:1; transform:translate(-50%,-60%) scale(1.15);}
+    100%{opacity:0; transform:translate(-50%,-160%) scale(1);}
+  }
+
+  /* overlay screens */
+  .overlay {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; gap:1rem;
+    background:rgba(17,0,43,.82); backdrop-filter:blur(4px); padding:1.5rem; z-index:5;
+  }
+  .overlay.hidden { display:none; }
+  .overlay h2 { font-family:'Bungee',sans-serif; font-size:clamp(1.6rem,7vw,2.6rem);
+    background:linear-gradient(90deg,var(--cyan),var(--yellow),var(--pink));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .overlay p { max-width:90%; line-height:1.45; font-size:1.05rem; }
+  .overlay .big { font-size:3.2rem; line-height:1; }
+  .btn {
+    font-family:'Bungee',sans-serif; text-transform:uppercase; cursor:pointer;
+    border:3px solid #fff; border-radius:50px; padding:.8rem 2rem; font-size:1.1rem;
+    color:var(--ink); background:var(--yellow); box-shadow:0 0 22px var(--yellow);
+    transition:transform .12s, box-shadow .25s;
+  }
+  .btn:hover { transform:scale(1.06); box-shadow:0 0 34px var(--pink); }
+  .legend { display:flex; gap:1.2rem; flex-wrap:wrap; justify-content:center; font-size:1rem; }
+  .legend b { font-size:1.4rem; }
+  .hi { color:var(--yellow); font-weight:700; }
+
+  .shake { animation:shake .3s; }
+  @keyframes shake {
+    0%,100%{transform:translate(0,0);} 20%{transform:translate(-8px,4px);}
+    40%{transform:translate(7px,-5px);} 60%{transform:translate(-6px,-3px);} 80%{transform:translate(5px,4px);}
+  }
+
+  footer { padding:.4rem; font-size:.8rem; opacity:.6; }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <a href="index.html">◄ Arcade</a>
+    <h1>🍕 PIZZA PANIC</h1>
+    <button class="mute" id="muteBtn" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+  </div>
+
+  <div class="hud">
+    <div class="score">Score: <span id="score">0</span></div>
+    <div class="combo" id="combo"></div>
+    <div class="lives" id="lives">❤️❤️❤️</div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="game"></canvas>
+
+    <!-- START SCREEN -->
+    <div class="overlay" id="startScreen">
+      <div class="big">🍕🍩🌮</div>
+      <h2>Pizza Panic!</h2>
+      <p>Catch the tasty treats with your plate — but <b>DODGE</b> the gross stuff!</p>
+      <div class="legend">
+        <span><b>🍕🍩🌮</b><br>Yum (+pts)</span>
+        <span><b>🥦🦴🧦</b><br>Yuck (-❤️)</span>
+      </div>
+      <p style="opacity:.8;font-size:.95rem;">Move with your mouse, finger, or ← → keys.</p>
+      <button class="btn" id="startBtn">▶ Start</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div class="overlay hidden" id="overScreen">
+      <div class="big" id="overEmoji">🤢</div>
+      <h2>Game Over!</h2>
+      <p id="overMsg"></p>
+      <p>Score: <b id="finalScore">0</b><br><span class="hi">Best: <span id="bestScore">0</span></span></p>
+      <button class="btn" id="againBtn">↻ Play Again</button>
+    </div>
+  </div>
+
+  <footer>Theo's Arcade · Mamma mia!</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- elements ----------
+  const stage   = document.getElementById('stage');
+  const canvas  = document.getElementById('game');
+  const ctx     = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const comboEl = document.getElementById('combo');
+  const livesEl = document.getElementById('lives');
+  const startScreen = document.getElementById('startScreen');
+  const overScreen  = document.getElementById('overScreen');
+  const startBtn = document.getElementById('startBtn');
+  const againBtn = document.getElementById('againBtn');
+  const muteBtn  = document.getElementById('muteBtn');
+  const finalScoreEl = document.getElementById('finalScore');
+  const bestScoreEl  = document.getElementById('bestScore');
+  const overMsgEl    = document.getElementById('overMsg');
+  const overEmojiEl  = document.getElementById('overEmoji');
+
+  // ---------- config ----------
+  const GOODIES = [
+    { emoji:'🍕', pts:10, cry:['Mamma mia!','Extra cheese!','Pizza party!','Cheesy!'] },
+    { emoji:'🍩', pts:15, cry:['Sweet!','Donut worry!','Yum yum!','Sprinkles!'] },
+    { emoji:'🌮', pts:20, cry:['Taco bout tasty!','Spicy!','Crunch!','Olé!'] },
+  ];
+  const BADDIES = [
+    { emoji:'🥦', cry:['Ewww, broccoli!','Yuck!','Not the trees!'] },
+    { emoji:'🦴', cry:['Bleh, fish bone!','Bony!','Spit it out!'] },
+    { emoji:'🧦', cry:['NOT THE SOCK!','Stinky!','Gross sock!'] },
+  ];
+  const GAMEOVER_LINES = [
+    "Your tummy gave up. Too much broccoli.",
+    "The sock was just too powerful.",
+    "Chef Theo needs a snack break!",
+    "You got bone-zoned. Try again!",
+  ];
+
+  // ---------- state ----------
+  let W = 0, H = 0, dpr = 1;
+  let plateX = 0, plateW = 0, plateY = 0;
+  let items = [];
+  let score = 0, lives = 3, combo = 0, bestCombo = 0;
+  let spawnTimer = 0, spawnGap = 900, elapsed = 0;
+  let running = false, lastT = 0;
+  let muted = false;
+
+  const best = () => { try { return parseInt(localStorage.getItem('pizzaPanicBest')||'0',10)||0; } catch(e){ return 0; } };
+  const saveBest = v => { try { localStorage.setItem('pizzaPanicBest', String(v)); } catch(e){} };
+  const rand = (a,b) => a + Math.random()*(b-a);
+  const pick = arr => arr[(Math.random()*arr.length)|0];
+
+  // ---------- audio (tiny WebAudio blips) ----------
+  let actx = null;
+  function beep(freq, dur, type) {
+    if (muted) return;
+    try {
+      if (!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type||'square'; o.frequency.value = freq;
+      g.gain.value = .08;
+      o.connect(g); g.connect(actx.destination);
+      const t = actx.currentTime;
+      g.gain.setValueAtTime(.08, t);
+      g.gain.exponentialRampToValueAtTime(.0001, t + (dur||.12));
+      o.start(t); o.stop(t + (dur||.12));
+    } catch(e){}
+  }
+  const goodSound = () => beep(660 + Math.min(combo,8)*40, .1, 'square');
+  const badSound  = () => { beep(160,.18,'sawtooth'); setTimeout(()=>beep(110,.2,'sawtooth'),60); };
+
+  // ---------- sizing ----------
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    W = r.width; H = r.height; dpr = Math.min(window.devicePixelRatio||1, 2);
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    plateW = Math.max(70, Math.min(120, W*0.22));
+    plateY = H - Math.max(46, H*0.10);
+    plateX = Math.min(Math.max(plateX || W/2, plateW/2), W - plateW/2);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- input ----------
+  function moveTo(clientX) {
+    const r = stage.getBoundingClientRect();
+    plateX = Math.min(Math.max(clientX - r.left, plateW/2), W - plateW/2);
+  }
+  stage.addEventListener('pointermove', e => { if (running) moveTo(e.clientX); });
+  stage.addEventListener('pointerdown', e => { if (running) moveTo(e.clientX); });
+  let keyDir = 0;
+  window.addEventListener('keydown', e => {
+    if (e.key==='ArrowLeft'||e.key==='a'||e.key==='A') keyDir=-1;
+    else if (e.key==='ArrowRight'||e.key==='d'||e.key==='D') keyDir=1;
+  });
+  window.addEventListener('keyup', e => {
+    if (['ArrowLeft','a','A','ArrowRight','d','D'].includes(e.key)) keyDir=0;
+  });
+
+  // ---------- popups ----------
+  function popup(text, x, y, color) {
+    const el = document.createElement('div');
+    el.className = 'popup';
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.style.color = color || '#fff';
+    el.style.fontSize = (Math.random()*0.4 + 1) + 'rem';
+    stage.appendChild(el);
+    setTimeout(()=>el.remove(), 1000);
+  }
+
+  // ---------- spawning ----------
+  function spawn() {
+    const bad = Math.random() < Math.min(0.18 + elapsed/120000, 0.40); // baddies ramp up
+    const def = bad ? pick(BADDIES) : pick(GOODIES);
+    const size = bad ? 40 : rand(38,48);
+    items.push({
+      bad, def, size,
+      x: rand(size, W - size),
+      y: -size,
+      vy: rand(2.0, 3.0) + elapsed/9000,        // fall speed ramps with time
+      vx: rand(-0.5,0.5),
+      spin: rand(-2,2), rot: 0,
+    });
+  }
+
+  // ---------- core loop ----------
+  function update(dt) {
+    elapsed += dt;
+    // difficulty: spawn gap shrinks over time
+    spawnGap = Math.max(380, 900 - elapsed/40);
+    spawnTimer += dt;
+    if (spawnTimer >= spawnGap) { spawnTimer = 0; spawn(); }
+
+    // keyboard movement
+    if (keyDir) plateX = Math.min(Math.max(plateX + keyDir*0.6*dt, plateW/2), W - plateW/2);
+
+    const plateTop = plateY - 6;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      it.y += it.vy * dt/16;
+      it.x += it.vx * dt/16;
+      it.rot += it.spin * dt/16 * 0.02;
+      if (it.x < it.size/2) { it.x = it.size/2; it.vx*=-1; }
+      if (it.x > W-it.size/2){ it.x = W-it.size/2; it.vx*=-1; }
+
+      // caught by plate?
+      const within = Math.abs(it.x - plateX) < plateW/2 + it.size*0.25;
+      if (it.y + it.size*0.3 >= plateTop && it.y - it.size*0.3 <= plateY + 16 && within) {
+        catchItem(it);
+        items.splice(i,1);
+        continue;
+      }
+      // fell off the bottom
+      if (it.y - it.size > H) {
+        if (!it.bad) { combo = 0; updateCombo(); }  // missed a goodie -> lose combo
+        items.splice(i,1);
+      }
+    }
+  }
+
+  function catchItem(it) {
+    const sx = it.x, sy = it.y;
+    if (it.bad) {
+      lives--;
+      combo = 0; updateCombo();
+      updateLives();
+      badSound();
+      popup(pick(it.def.cry), sx, sy, '#ff5c8a');
+      stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake');
+      if (lives <= 0) return gameOver();
+    } else {
+      combo++;
+      bestCombo = Math.max(bestCombo, combo);
+      const mult = 1 + Math.floor(combo/5);           // every 5-streak bumps multiplier
+      const gain = it.def.pts * mult;
+      score += gain;
+      scoreEl.textContent = score;
+      goodSound();
+      const msg = combo>0 && combo%5===0 ? '🔥 COMBO x'+mult+'!' : ('+'+gain);
+      popup(msg, sx, sy, combo%5===0 ? '#ffe600' : '#7cff00');
+      if (Math.random()<0.5) popup(pick(it.def.cry), sx, sy-26, '#00f0ff');
+      updateCombo();
+    }
+  }
+
+  function updateCombo() {
+    if (combo >= 2) { comboEl.textContent = 'Combo x'+combo+'!';
+      comboEl.style.transform='scale(1.2)';
+      setTimeout(()=>comboEl.style.transform='scale(1)',100);
+    } else comboEl.textContent = '';
+  }
+  function updateLives() { livesEl.textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,3-lives)); }
+
+  // ---------- render ----------
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    // items
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    for (const it of items) {
+      ctx.save();
+      ctx.translate(it.x, it.y);
+      ctx.rotate(it.rot);
+      ctx.font = it.size + 'px serif';
+      ctx.fillText(it.def.emoji, 0, 0);
+      ctx.restore();
+    }
+    // plate
+    ctx.save();
+    ctx.font = plateW + 'px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('🍽️', plateX, plateY);
+    ctx.restore();
+  }
+
+  function frame(t) {
+    if (!running) return;
+    const dt = Math.min(48, t - lastT); lastT = t;
+    update(dt); draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- game flow ----------
+  function startGame() {
+    resize();
+    items = []; score = 0; lives = 3; combo = 0; bestCombo = 0;
+    spawnTimer = 0; elapsed = 0; spawnGap = 900;
+    scoreEl.textContent = '0'; comboEl.textContent=''; updateLives();
+    plateX = W/2;
+    startScreen.classList.add('hidden');
+    overScreen.classList.add('hidden');
+    running = true; lastT = performance.now();
+    if (actx && actx.state === 'suspended') actx.resume();
+    requestAnimationFrame(frame);
+  }
+
+  function gameOver() {
+    running = false;
+    const b = best();
+    if (score > b) { saveBest(score); }
+    finalScoreEl.textContent = score;
+    bestScoreEl.textContent  = Math.max(score, b);
+    overMsgEl.textContent = pick(GAMEOVER_LINES) + (bestCombo>=5 ? ' Best combo: x'+bestCombo+'! 🔥' : '');
+    overEmojiEl.textContent = score > b && score>0 ? '🏆' : '🤢';
+    overScreen.classList.remove('hidden');
+  }
+
+  // ---------- wire up ----------
+  startBtn.addEventListener('click', () => { try{ if(!actx) actx=new(window.AudioContext||window.webkitAudioContext)(); actx.resume(); }catch(e){} startGame(); });
+  againBtn.addEventListener('click', startGame);
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    muteBtn.classList.toggle('off', muted);
+  });
+
+  bestScoreEl.textContent = best();
+  resize();
+})();
+</script>
+</body>
+</html>
