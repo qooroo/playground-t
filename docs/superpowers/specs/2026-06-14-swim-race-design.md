@@ -33,25 +33,28 @@ three (deliberately easy) CPU swimmers to the finish.
   impulse to the player.
 - **Stamina** (0–100):
   - Each stroke costs a fixed amount of stamina.
-  - Stamina regenerates over time; regen is **faster while gliding** (not stroking).
-  - A stroke's power **scales with current stamina** — strokes at high stamina propel
-    well; strokes at low stamina do little.
-- **Winded state:** when stamina bottoms out (near 0), the player enters "winded" —
-  strokes give almost nothing and the swimmer drifts to a crawl until stamina recovers
-  above a threshold. Visual cue: swimmer shows 😮‍💨 and a slowdown; stamina bar flashes.
-- **Result:** rhythmic, paced tapping (stroke → short recovery → stroke) is optimal;
-  mashing is actively worse. Doing nothing = drift slowly and lose.
+  - Stamina regenerates steadily over time — recover by easing off the strokes.
+  - A stroke's power **scales linearly with current stamina** — full impulse near 100,
+    near-zero near 0. This is the natural anti-mash mechanic: mash and your strokes go
+    limp, so you can't out-run a paced swimmer.
+- **Gassed cue (visual, not a hard penalty):** when stamina drops to/below a threshold
+  (~25), the swimmer shows 😮‍💨 and the stamina bar flashes red, signalling "ease off."
+  There is no separate crawl penalty — the weak-stroke scaling alone handles balance,
+  which keeps the feel smooth and forgiving rather than punishing a single narrow rhythm.
+- **Result:** any comfortable rhythm (~0.6–1.4s between strokes) wins clearly; frantic
+  mashing finishes last; doing nothing never reaches the wall (DNF / last).
 
-### Tuning targets (starting values, adjustable in playtest)
+### Tuning (shipped values, adjustable in playtest)
 
-- Race length: **short & punchy**, ~15 seconds for a competent player, one screen-width
-  of scroll worth of distance (exact px tuned to the canvas).
-- Stroke cost ~18 stamina; regen ~22/sec gliding, ~8/sec right after a stroke.
-- Stroke impulse scales linearly with stamina (full impulse near 100, ~0 near 0).
-- Passive drag decelerates the swimmer so velocity must be maintained by strokes.
-- **CPU speed** set so a player tapping in a sensible rhythm finishes clearly ahead;
-  CPUs swim at a steady base pace with small random wobble, capped below optimal player
-  pace. Goal: easy to beat, but a player who never strokes still loses.
+- Race distance: 1000 world units. A comfortable rhythm finishes in ~9–15s
+  (short & punchy); the fastest CPU finishes ~16s.
+- Stroke cost 16 stamina; steady regen 20/sec.
+- Stroke impulse 190 at full stamina, scaling linearly to ~0 as stamina empties.
+- Drag 2.0/sec decelerates the swimmer so speed must be maintained by strokes.
+- **CPU speeds** `[62, 55, 48]` units/sec with a small ±10% wobble — set clearly below
+  a sensible rhythm-tapper's pace so it's easy to beat, while mashing or idling loses.
+- Balance verified by simulating the exact physics across tapping cadences (mash → 4th,
+  brisk/steady/relaxed → 🥇, idle → DNF).
 
 ## Game flow
 

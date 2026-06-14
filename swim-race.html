@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏊 Swimming Race — Adie's Arcade</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Poppins:wght@500;700&display=swap');
+
+  :root {
+    --pool:#0bd3ff; --magenta:#ff2bce; --lime:#aaff00; --sun:#ffd23f;
+    --violet:#8a2bff; --deep:#03102e;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family:'Poppins', system-ui, sans-serif; color:#fff;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,43,206,.30), transparent 45%),
+      radial-gradient(circle at 80% 25%, rgba(11,211,255,.30), transparent 45%),
+      linear-gradient(135deg,#0a1f5c,#05163f 60%,#03102e);
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100%; overflow:hidden; touch-action:none;
+    user-select:none; -webkit-user-select:none;
+  }
+
+  .topbar {
+    width:100%; max-width:560px; display:flex; align-items:center;
+    justify-content:space-between; padding:.7rem 1rem .3rem; gap:.5rem;
+  }
+  .topbar a { color:var(--pool); text-decoration:none; font-weight:700; font-size:.95rem; text-shadow:0 0 8px var(--pool); white-space:nowrap; }
+  .topbar a:hover { color:var(--lime); text-shadow:0 0 8px var(--lime); }
+  h1 {
+    font-family:'Audiowide', sans-serif; font-size:clamp(1.1rem,4.4vw,1.8rem);
+    background:linear-gradient(90deg,var(--pool),var(--magenta),var(--lime));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 10px rgba(11,211,255,.6)); white-space:nowrap;
+  }
+  .mute { background:none; border:none; cursor:pointer; font-size:1.4rem; }
+  .mute.off { opacity:.45; }
+
+  .hud {
+    width:100%; max-width:560px; display:flex; justify-content:space-between;
+    align-items:center; gap:.8rem; padding:.2rem 1rem .4rem; font-weight:700; font-size:1rem;
+  }
+  .stamina-wrap { flex:1; }
+  .stamina-label { font-size:.72rem; letter-spacing:1px; text-transform:uppercase; opacity:.85; color:var(--pool); }
+  .stamina-bar {
+    height:14px; border-radius:10px; overflow:hidden; margin-top:2px;
+    background:rgba(255,255,255,.12); border:2px solid rgba(11,211,255,.5);
+  }
+  .stamina-fill {
+    height:100%; width:100%;
+    background:linear-gradient(90deg,var(--lime),var(--pool));
+    transition:background .2s;
+  }
+  .stamina-fill.low { background:linear-gradient(90deg,#ff5a5a,var(--magenta)); }
+  .place { color:var(--sun); text-shadow:0 0 8px var(--sun); white-space:nowrap; font-family:'Audiowide',sans-serif; font-size:.95rem; }
+
+  .stage {
+    position:relative; width:100%; max-width:560px; flex:1;
+    margin:0 .5rem; border:4px solid var(--pool); border-radius:18px;
+    box-shadow:0 0 28px rgba(11,211,255,.4), inset 0 0 40px rgba(0,0,0,.35);
+    overflow:hidden; background:linear-gradient(180deg,rgba(11,211,255,.10),rgba(0,0,0,.20));
+  }
+  canvas { display:block; width:100%; height:100%; }
+
+  .countdown {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Audiowide',sans-serif; font-size:clamp(3rem,16vw,6rem);
+    color:#fff; text-shadow:0 0 24px var(--magenta); pointer-events:none; z-index:4;
+  }
+  .countdown.hidden { display:none; }
+
+  .overlay {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; gap:1rem;
+    background:rgba(3,16,46,.85); backdrop-filter:blur(4px); padding:1.5rem; z-index:5;
+  }
+  .overlay.hidden { display:none; }
+  .overlay h2 { font-family:'Audiowide',sans-serif; font-size:clamp(1.6rem,7vw,2.6rem);
+    background:linear-gradient(90deg,var(--pool),var(--lime),var(--magenta));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .overlay p { max-width:92%; line-height:1.45; font-size:1.05rem; }
+  .overlay .big { font-size:3rem; line-height:1; }
+  .btn {
+    font-family:'Audiowide',sans-serif; text-transform:uppercase; cursor:pointer;
+    border:3px solid #fff; border-radius:50px; padding:.8rem 2rem; font-size:1.05rem;
+    color:var(--deep); background:var(--pool); box-shadow:0 0 22px var(--pool);
+    transition:transform .12s, box-shadow .25s;
+  }
+  .btn:hover { transform:scale(1.06); box-shadow:0 0 34px var(--magenta); }
+  .hint { opacity:.8; font-size:.95rem; }
+
+  footer { padding:.5rem; font-size:.8rem; opacity:.6; }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <a href="adie-arcade.html">◄ Adie's Arcade</a>
+    <h1>🏊 SWIMMING RACE</h1>
+    <button class="mute" id="muteBtn" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+  </div>
+
+  <div class="hud">
+    <div class="stamina-wrap">
+      <div class="stamina-label">Stamina</div>
+      <div class="stamina-bar"><div class="stamina-fill" id="staminaFill"></div></div>
+    </div>
+    <div class="place" id="place">—</div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="game"></canvas>
+
+    <div class="countdown hidden" id="countdown"></div>
+
+    <div class="overlay" id="startScreen">
+      <div class="big">🏊‍♀️🏊‍♂️</div>
+      <h2>Swimming Race</h2>
+      <p><b>Tap to stroke</b> and surge forward — but each stroke burns <b>stamina</b>.
+         Let it recover between strokes; <b>mash and you'll gas out</b> and slow to a crawl. Find your rhythm and out-pace the pack!</p>
+      <p class="hint">Tap / click / press Space to stroke.</p>
+      <button class="btn" id="startBtn">▶ Dive In</button>
+    </div>
+
+    <div class="overlay hidden" id="overScreen">
+      <div class="big" id="overEmoji">🥇</div>
+      <h2 id="overTitle">You Win!</h2>
+      <p id="overMsg"></p>
+      <p>Your time: <b id="finalTime">0.00s</b><br>
+         <span style="color:var(--sun)">Best: <span id="bestTime">—</span></span></p>
+      <button class="btn" id="againBtn">↻ Race Again</button>
+    </div>
+  </div>
+
+  <footer>Adie's Arcade · Pool's open!</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const stage   = document.getElementById('stage');
+  const canvas  = document.getElementById('game');
+  const ctx     = canvas.getContext('2d');
+  const staminaFill = document.getElementById('staminaFill');
+  const placeEl = document.getElementById('place');
+  const countdownEl = document.getElementById('countdown');
+  const startScreen = document.getElementById('startScreen');
+  const overScreen  = document.getElementById('overScreen');
+  const startBtn = document.getElementById('startBtn');
+  const againBtn = document.getElementById('againBtn');
+  const muteBtn  = document.getElementById('muteBtn');
+  const finalTimeEl = document.getElementById('finalTime');
+  const bestTimeEl  = document.getElementById('bestTime');
+  const overMsgEl   = document.getElementById('overMsg');
+  const overEmojiEl = document.getElementById('overEmoji');
+  const overTitleEl = document.getElementById('overTitle');
+
+  // ---- tuning ----
+  const RACE_DIST   = 1000;   // world units to finish line
+  const LANES       = 4;
+  const STROKE_COST = 16;     // stamina spent per stroke
+  const REGEN       = 20;     // stamina/sec recovered (steady)
+  const STROKE_IMP  = 190;    // impulse from a FULL-stamina stroke; scales down with stamina
+  const DRAG        = 2.0;    // velocity decay per sec (fraction)
+  const GASSED_AT   = 25;     // stamina at/below this = "gassed" cue; strokes get weak
+  // CPU base speeds (units/sec). A comfortable tapping rhythm (~0.6–1.4s between strokes)
+  // finishes in ~9–15s; the fastest CPU here finishes ~16s — so any sensible rhythm wins,
+  // while frantic mashing (weak strokes) or idling loses.
+  const CPU_SPEEDS  = [62, 55, 48];
+
+  let W=0, H=0, dpr=1;
+  let state='idle';      // idle | countdown | racing | over
+  let muted=false;
+  let lastT=0;
+
+  let player, cpus, stamina, gassed, startTime, raceTime, scrollX;
+
+  const bestKey='swimRaceBest';
+  const best = () => { try { const v=parseFloat(localStorage.getItem(bestKey)); return isFinite(v)?v:null; } catch(e){ return null; } };
+  const saveBest = v => { try { localStorage.setItem(bestKey, String(v)); } catch(e){} };
+  const rand = (a,b)=>a+Math.random()*(b-a);
+  const fmt = s => s.toFixed(2)+'s';
+
+  // ---- audio ----
+  let actx=null;
+  function ensureAudio(){ try{ if(!actx) actx=new(window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }catch(e){} }
+  function blip(freq,dur,type){
+    if(muted) return;
+    try{
+      ensureAudio();
+      const o=actx.createOscillator(), g=actx.createGain();
+      o.type=type||'sine'; o.frequency.value=freq;
+      o.connect(g); g.connect(actx.destination);
+      const t=actx.currentTime;
+      g.gain.setValueAtTime(.12,t);
+      g.gain.exponentialRampToValueAtTime(.0001,t+(dur||.12));
+      o.start(t); o.stop(t+(dur||.12));
+    }catch(e){}
+  }
+
+  function resize(){
+    const r=stage.getBoundingClientRect();
+    W=r.width; H=r.height; dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=W*dpr; canvas.height=H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  function laneY(i){ return H*( (i+0.5)/LANES ); }
+
+  function reset(){
+    player = { x:0, v:0 };
+    cpus = CPU_SPEEDS.map((sp,i)=>({ x:0, base:sp, wob:rand(0,Math.PI*2), lane:i+1 }));
+    stamina = 100; gassed=false;
+    raceTime=0; scrollX=0;
+  }
+
+  function startGame(){
+    resize();
+    reset();
+    startScreen.classList.add('hidden');
+    overScreen.classList.add('hidden');
+    ensureAudio();
+    // countdown: 3,2,1,GO
+    state='countdown';
+    let n=3;
+    countdownEl.classList.remove('hidden');
+    countdownEl.textContent=n;
+    blip(440,.15,'sine');
+    const tick=()=>{
+      n--;
+      if(n>0){ countdownEl.textContent=n; blip(440,.15,'sine'); setTimeout(tick,700); }
+      else if(n===0){ countdownEl.textContent='GO!'; blip(880,.25,'square'); setTimeout(()=>{
+        countdownEl.classList.add('hidden');
+        state='racing'; startTime=performance.now();
+      }, 600); }
+    };
+    setTimeout(tick,700);
+  }
+
+  function stroke(){
+    if(state!=='racing') return;
+    const power = stamina/100;            // low stamina => weak stroke (mashing self-defeats)
+    player.v += STROKE_IMP * power;
+    stamina = Math.max(0, stamina - STROKE_COST);
+    if(stamina<=GASSED_AT) blip(200+power*180,.08,'sawtooth');  // strained
+    else blip(520+power*260,.07,'sine');
+  }
+
+  function update(dt){
+    if(state!=='racing') return;
+    const s=dt/1000;
+    raceTime = (performance.now()-startTime)/1000;
+
+    // stamina regen (steady) — recover by easing off the strokes
+    stamina = Math.min(100, stamina + REGEN*s);
+    gassed = stamina<=GASSED_AT;
+
+    // player physics: impulse-driven, drag decays velocity
+    player.v -= player.v*DRAG*s;
+    if(player.v<0) player.v=0;
+    player.x += player.v*s;
+
+    // CPUs: steady pace + gentle wobble, capped easy
+    for(const c of cpus){
+      c.wob += s*1.6;
+      const sp = c.base * (1 + 0.10*Math.sin(c.wob));
+      c.x += sp*s;
+    }
+
+    // camera follows player, keeping them ~38% from left
+    const desired = Math.max(0, player.x - W*0.38);
+    scrollX += (desired - scrollX) * Math.min(1, s*4);
+
+    // Race ends when the player crosses the line (win or placed), or when every
+    // CPU has finished while the player is still short (idle/too-slow = you lose).
+    if(player.x>=RACE_DIST || cpus.every(c=>c.x>=RACE_DIST)) finish();
+
+    updateHud();
+  }
+
+  function currentPlace(){
+    const ahead = cpus.filter(c=>c.x>player.x).length;
+    return ahead+1;
+  }
+
+  function updateHud(){
+    const pct = Math.max(0, Math.min(100, stamina));
+    staminaFill.style.width = pct+'%';
+    staminaFill.classList.toggle('low', gassed);
+    const p=currentPlace();
+    const sfx = p===1?'🥇':p===2?'🥈':p===3?'🥉':'4th';
+    placeEl.textContent = (gassed?'😮‍💨 ':'') + sfx;
+  }
+
+  let finished=false;
+  function finish(){
+    if(finished) return;
+    finished=true;
+    state='over';
+    const p=currentPlace();
+    raceTime=(performance.now()-startTime)/1000;
+    const won = p===1;
+    let b=best();
+    let newRecord=false;
+    if(won && (b===null || raceTime<b)){ saveBest(raceTime); newRecord=true; b=raceTime; }
+
+    if(won){ blip(660,.15,'square'); setTimeout(()=>blip(880,.2,'square'),130); setTimeout(()=>blip(1175,.3,'square'),280); }
+    else { blip(220,.3,'sawtooth'); setTimeout(()=>blip(165,.35,'sawtooth'),120); }
+
+    setTimeout(()=>{
+      overEmojiEl.textContent = p===1?'🥇':p===2?'🥈':p===3?'🥉':'🏊';
+      overTitleEl.textContent = won ? (newRecord?'New Record!':'You Win!') : (p===2?'So Close!':'You Lost!');
+      const placeWord = {1:'1st',2:'2nd',3:'3rd',4:'4th'}[p];
+      overMsgEl.textContent = won
+        ? 'First to the wall! 🏆'
+        : 'You finished '+placeWord+'. Pace your strokes and try again!';
+      finalTimeEl.textContent = fmt(raceTime);
+      bestTimeEl.textContent = b!=null ? fmt(b) : '—';
+      overScreen.classList.remove('hidden');
+    }, 500);
+  }
+
+  // ---- drawing ----
+  function drawWater(){
+    ctx.clearRect(0,0,W,H);
+    // moving shimmer lines
+    const off = (-scrollX*0.4) % 60;
+    ctx.save();
+    ctx.globalAlpha=.16; ctx.strokeStyle='#bfefff'; ctx.lineWidth=3;
+    for(let x=off-60; x<W+60; x+=60){
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x+30,H); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawLanes(){
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=2;
+    ctx.setLineDash([10,10]);
+    const dashOff=(-scrollX*1) % 20;
+    ctx.lineDashOffset=dashOff;
+    for(let i=1;i<LANES;i++){
+      const y=H*(i/LANES);
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawFinish(){
+    const fx = RACE_DIST - scrollX;
+    if(fx< -20 || fx>W+20) return;
+    const sq=10;
+    for(let y=0;y<H;y+=sq){
+      for(let k=0;k<2;k++){
+        ctx.fillStyle = ((Math.floor(y/sq)+k)%2===0)?'#fff':'#03102e';
+        ctx.fillRect(fx+k*sq, y, sq, sq);
+      }
+    }
+  }
+
+  function drawSwimmer(worldX, y, emoji, isPlayer){
+    const x = worldX - scrollX;
+    if(x< -40 || x>W+40) return;
+    ctx.save();
+    ctx.font = (isPlayer?34:30)+'px serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    if(isPlayer){
+      ctx.shadowColor='#0bd3ff'; ctx.shadowBlur=14;
+    }
+    ctx.fillText(emoji, x, y);
+    ctx.restore();
+  }
+
+  function draw(){
+    drawWater();
+    drawLanes();
+    drawFinish();
+    // CPUs
+    const cpuEmoji=['🏊‍♂️','🏊','🏊‍♀️'];
+    cpus.forEach((c,i)=> drawSwimmer(c.x, laneY(c.lane), cpuEmoji[i%cpuEmoji.length], false));
+    // player (lane 0)
+    drawSwimmer(player ? player.x : 0, laneY(0), gassed?'😮‍💨':'🏊‍♀️', true);
+  }
+
+  function frame(t){
+    const dt=Math.min(48, t-lastT); lastT=t;
+    if(state==='racing') update(dt);
+    if(player) draw(); else ctx.clearRect(0,0,W,H);
+    requestAnimationFrame(frame);
+  }
+
+  // ---- input ----
+  function onTap(e){ if(e) e.preventDefault(); stroke(); }
+  stage.addEventListener('pointerdown', onTap);
+  window.addEventListener('keydown', e=>{ if(e.code==='Space'||e.key===' '){ e.preventDefault(); stroke(); } });
+
+  startBtn.addEventListener('click', ()=>{ finished=false; startGame(); });
+  againBtn.addEventListener('click', ()=>{ finished=false; startGame(); });
+  muteBtn.addEventListener('click', ()=>{
+    muted=!muted; muteBtn.textContent=muted?'🔇':'🔊'; muteBtn.classList.toggle('off',muted);
+  });
+
+  resize();
+  const b=best();
+  bestTimeEl.textContent = b!=null ? fmt(b) : '—';
+  staminaFill.style.width='100%';
+  lastT=performance.now();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
