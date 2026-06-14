@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌊 ADIE'S ARCADE 🌊</title>
+<style>
+  /* ===========================================================
+     ADIE'S ARCADE — NEON POOL-PARTY LANDING PAGE
+     Self-contained. No build step. Just open it.
+     =========================================================== */
+
+  @import url('https://fonts.googleapis.com/css2?family=Monoton&family=Audiowide&family=Poppins:wght@500;700&display=swap');
+
+  :root {
+    --pool:    #0bd3ff;
+    --magenta: #ff2bce;
+    --violet:  #8a2bff;
+    --lime:    #aaff00;
+    --sun:     #ffd23f;
+    --deep:    #03102e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Poppins', system-ui, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+      radial-gradient(circle at 18% 18%, rgba(255,43,206,.4), transparent 45%),
+      radial-gradient(circle at 82% 22%, rgba(11,211,255,.4), transparent 45%),
+      radial-gradient(circle at 50% 92%, rgba(138,43,255,.35), transparent 50%),
+      linear-gradient(160deg, #05163f, #0a1f5c 45%, #03102e);
+    background-size: 200% 200%, 200% 200%, 200% 200%, 100% 100%;
+    animation: bgshift 16s ease-in-out infinite;
+  }
+
+  @keyframes bgshift {
+    0%,100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
+    50%     { background-position: 100% 100%, 0% 100%, 50% 0%, 0 0; }
+  }
+
+  /* ---- Shimmering pool water ---- */
+  .pool {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 42vh;
+    z-index: 0; pointer-events: none; opacity: .6;
+    background:
+      repeating-linear-gradient(115deg, rgba(11,211,255,.0) 0 18px, rgba(11,211,255,.22) 18px 22px),
+      repeating-linear-gradient(65deg,  rgba(255,255,255,.0) 0 26px, rgba(255,255,255,.12) 26px 30px);
+    -webkit-mask-image: linear-gradient(transparent, #000 55%);
+            mask-image: linear-gradient(transparent, #000 55%);
+    animation: ripple 6s linear infinite;
+  }
+  @keyframes ripple { to { background-position: 80px 0, -80px 0; } }
+
+  /* ---- Floating party people / music ---- */
+  .party { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+  .party span {
+    position: absolute; bottom: -12%;
+    font-size: clamp(1.4rem, 4vw, 3rem);
+    animation: rise linear infinite;
+    opacity: .9;
+  }
+  @keyframes rise {
+    0%   { transform: translateY(0) rotate(0deg); }
+    50%  { transform: translateY(-60vh) rotate(12deg); }
+    100% { transform: translateY(-120vh) rotate(-12deg); }
+  }
+
+  .wrap { position: relative; z-index: 2; max-width: 1100px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+
+  /* ---- Back link ---- */
+  .backlink { margin-bottom: .5rem; }
+  .backlink a {
+    font-family: 'Audiowide', sans-serif; text-decoration: none;
+    text-transform: uppercase; font-size: .8rem; letter-spacing: 1px;
+    color: var(--deep); background: var(--pool);
+    padding: .45rem 1.1rem; border-radius: 50px;
+    box-shadow: 0 0 16px var(--pool);
+    transition: transform .15s ease, box-shadow .2s ease;
+    display: inline-block;
+  }
+  .backlink a:hover { transform: translateX(-4px); box-shadow: 0 0 24px var(--magenta); background: var(--magenta); color: #fff; }
+
+  /* ---- Title ---- */
+  header { text-align: center; padding: 2rem 0 1rem; }
+  .title {
+    font-family: 'Monoton', cursive;
+    font-size: clamp(2.6rem, 12vw, 7.5rem);
+    line-height: 1; letter-spacing: 3px;
+    background: linear-gradient(90deg, var(--pool), var(--magenta), var(--sun), var(--lime), var(--pool));
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 22px rgba(11,211,255,.8));
+    animation: rainbow 6s linear infinite, sway 4s ease-in-out infinite;
+  }
+  @keyframes rainbow { to { background-position: 300% 0; } }
+  @keyframes sway { 50% { transform: translateY(-8px) rotate(1.5deg); } }
+
+  .tagline {
+    margin-top: 1.1rem; font-size: clamp(1rem, 2.6vw, 1.5rem); font-weight: 700;
+    color: var(--lime); text-shadow: 0 0 12px var(--lime);
+    text-transform: uppercase; letter-spacing: 3px;
+  }
+  .blink { animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Section heading ---- */
+  .heading {
+    font-family: 'Audiowide', sans-serif; text-transform: uppercase;
+    font-size: clamp(1.4rem, 4vw, 2.2rem); text-align: center;
+    margin: 3rem 0 2rem; color: var(--pool);
+    text-shadow: 3px 3px 0 var(--magenta), 6px 6px 0 rgba(0,0,0,.35);
+  }
+
+  /* ---- Game grid ---- */
+  .grid {
+    display: grid; gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+
+  .card {
+    position: relative; display: block; text-decoration: none; color: #fff;
+    background: rgba(255,255,255,.06);
+    border: 3px solid var(--pool);
+    border-radius: 22px; padding: 1.6rem 1.4rem 1.4rem;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 14px 30px rgba(0,0,0,.4);
+    transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease;
+    overflow: hidden;
+  }
+  .card::after {
+    content: ""; position: absolute; inset: 0; border-radius: 19px;
+    background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.18), transparent 60%);
+    pointer-events: none;
+  }
+  .card:hover {
+    transform: translateY(-10px) rotate(-1.5deg) scale(1.03);
+    border-color: var(--magenta);
+    box-shadow: 0 0 28px var(--magenta), 0 22px 40px rgba(0,0,0,.55);
+  }
+  .card:nth-child(even):hover { transform: translateY(-10px) rotate(1.5deg) scale(1.03); }
+
+  .card .icon {
+    font-size: 3.4rem; display: block; margin-bottom: .6rem;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,.5));
+    transition: transform .2s ease;
+  }
+  .card:hover .icon { transform: scale(1.25) rotate(8deg); }
+
+  .card h3 {
+    font-family: 'Audiowide', sans-serif; font-size: 1.25rem;
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: .35rem;
+  }
+  .card p { font-size: .95rem; opacity: .85; line-height: 1.35; }
+
+  .badge {
+    position: absolute; top: 14px; right: -36px;
+    background: var(--lime); color: var(--deep);
+    font-family: 'Audiowide', sans-serif; font-size: .68rem; letter-spacing: 1px;
+    padding: .3rem 2.6rem; transform: rotate(35deg);
+    box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  }
+
+  /* ---- Placeholder "coming soon" cards ---- */
+  .card.soon { border-color: var(--violet); border-style: dashed; opacity: .92; cursor: default; }
+  .card.soon:hover { border-color: var(--sun); box-shadow: 0 0 28px var(--sun), 0 22px 40px rgba(0,0,0,.55); }
+  .badge.soon { background: var(--sun); }
+
+  /* ---- Footer ---- */
+  footer {
+    text-align: center; margin-top: 4rem; font-weight: 700;
+    color: var(--lime); text-shadow: 0 0 10px var(--lime); letter-spacing: 1px;
+  }
+  footer .heart { color: var(--magenta); }
+  footer .ver {
+    display: inline-block; margin-left: .4rem;
+    font-family: 'Audiowide', sans-serif; font-size: .72rem; letter-spacing: 1px;
+    color: var(--deep); background: var(--pool);
+    padding: .12rem .6rem; border-radius: 999px;
+    box-shadow: 0 0 12px var(--pool); text-shadow: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="pool"></div>
+  <div class="party" id="party" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <p class="backlink"><a href="index.html">◄ Arcade District</a></p>
+
+    <header>
+      <h1 class="title">ADIE'S<br>ARCADE</h1>
+      <p class="tagline">Pool's Open <span class="blink">▮</span> Turn It Up</p>
+    </header>
+
+    <h2 class="heading" id="games">🌊 The Party Cabinet 🌊</h2>
+
+    <div class="grid" id="grid">
+
+      <!-- ============================================================
+           HOW TO ADD A GAME:
+           Copy ONE card block, point href at your game's .html,
+           swap the emoji icon, the <h3> title, and the <p> blurb.
+           Remove class="soon" + the COMING SOON badge once it's live,
+           and change the <div> back to <a href="...">.
+
+           TEMPLATE (live game) — copy me:
+           <a class="card" href="your-game.html">
+             <span class="badge">PLAY</span>
+             <span class="icon">🎯</span>
+             <h3>Your Game</h3>
+             <p>A snappy one-line description of the fun.</p>
+           </a>
+           ============================================================ -->
+
+      <div class="card soon">
+        <span class="badge soon">SOON</span>
+        <span class="icon">🏊</span>
+        <h3>Cannonball!</h3>
+        <p>A big splashy game is warming up by the pool. Coming soon!</p>
+      </div>
+
+      <div class="card soon">
+        <span class="badge soon">SOON</span>
+        <span class="icon">🎵</span>
+        <h3>Beat Drop</h3>
+        <p>Something to dance to is loading on the decks…</p>
+      </div>
+
+      <div class="card soon">
+        <span class="badge soon">SOON</span>
+        <span class="icon">🪩</span>
+        <h3>Mystery Game</h3>
+        <p>A fresh neon banger is about to drop. Stay tuned!</p>
+      </div>
+
+    </div>
+
+    <footer>
+      <p>Vibe-coded with <span class="heart">♥</span> for Adie · The party's just getting started <span class="ver">v1</span></p>
+    </footer>
+  </div>
+
+<script>
+  (function () {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    // Floating party people, music notes & pool floats rising up.
+    const box = document.getElementById('party');
+    const crew = ['🕺','💃','🏊','🎵','🎶','🪩','🍹','🦩'];
+    const COUNT = 20;
+    for (let i = 0; i < COUNT; i++) {
+      const s = document.createElement('span');
+      s.textContent = crew[i % crew.length];
+      s.style.left = (Math.random() * 100) + 'vw';
+      s.style.animationDuration = (9 + Math.random() * 11) + 's';
+      s.style.animationDelay = (-Math.random() * 16) + 's';
+      s.style.fontSize = (1.4 + Math.random() * 1.8) + 'rem';
+      box.appendChild(s);
+    }
+  })();
+</script>
+</body>
+</html>

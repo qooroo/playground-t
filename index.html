@@ -3,207 +3,171 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🕹️ THEO'S ARCADE 🕹️</title>
+<title>🎟️ THE ARCADE DISTRICT 🎟️</title>
 <style>
   /* ===========================================================
-     THEO'S ARCADE — 110% FUNKY NEON LANDING PAGE
+     THE ARCADE DISTRICT — HUB / "PICK YOUR ARCADE" LANDING
      Self-contained. No build step. Just open it.
+
+     Each portal button's background previews that arcade's vibe:
+       • Theo → neon synthwave        (theo-arcade.html)
+       • Bea  → pastel clouds/axolotl (bea-arcade.html)
+       • Adie → neon pool party       (adie-arcade.html)
      =========================================================== */
 
   @import url('https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Bungee&family=Fredoka:wght@500;700&display=swap');
 
-  :root {
-    --pink:   #ff2bd6;
-    --cyan:   #00f0ff;
-    --yellow: #ffe600;
-    --lime:   #7cff00;
-    --purple: #9b5cff;
-    --orange: #ff8a00;
-    --ink:    #11002b;
-  }
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
   html { scroll-behavior: smooth; }
 
   body {
     font-family: 'Fredoka', system-ui, sans-serif;
-    color: #fff;
-    min-height: 100vh;
-    overflow-x: hidden;
+    color: #fff; min-height: 100vh; overflow-x: hidden;
     background:
-      radial-gradient(circle at 20% 20%, rgba(255,43,214,.35), transparent 45%),
-      radial-gradient(circle at 80% 30%, rgba(0,240,255,.30), transparent 45%),
-      radial-gradient(circle at 50% 90%, rgba(124,255,0,.25), transparent 45%),
-      linear-gradient(135deg, #1a0033, #2d0052 40%, #11002b);
+      radial-gradient(circle at 15% 15%, rgba(255,43,214,.28), transparent 45%),
+      radial-gradient(circle at 85% 20%, rgba(0,240,255,.24), transparent 45%),
+      radial-gradient(circle at 50% 95%, rgba(124,255,0,.18), transparent 50%),
+      linear-gradient(135deg, #15001f, #1d0033 45%, #0b0019);
     background-size: 200% 200%, 200% 200%, 200% 200%, 100% 100%;
-    animation: bgshift 16s ease-in-out infinite;
+    animation: bgshift 18s ease-in-out infinite;
   }
-
   @keyframes bgshift {
     0%,100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0 0; }
     50%     { background-position: 100% 100%, 0% 100%, 50% 0%, 0 0; }
   }
 
-  /* ---- Retro grid floor ---- */
-  .grid-floor {
-    position: fixed; left: 0; right: 0; bottom: 0; height: 45vh;
-    z-index: 0; pointer-events: none; perspective: 320px;
-    opacity: .55;
-  }
-  .grid-floor::before {
-    content: ""; position: absolute; inset: -50% -50% 0 -50%;
-    background-image:
-      linear-gradient(var(--cyan) 2px, transparent 2px),
-      linear-gradient(90deg, var(--pink) 2px, transparent 2px);
-    background-size: 48px 48px;
-    transform: rotateX(72deg);
-    transform-origin: bottom center;
-    animation: grid 1.2s linear infinite;
-    -webkit-mask-image: linear-gradient(transparent, #000 60%);
-            mask-image: linear-gradient(transparent, #000 60%);
-  }
-  @keyframes grid { from { background-position: 0 0; } to { background-position: 0 48px; } }
-
-  /* ---- Floating emoji confetti ---- */
-  .confetti { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
-  .confetti span {
-    position: absolute; top: -10%;
-    font-size: clamp(1.2rem, 3vw, 2.4rem);
-    animation: fall linear infinite;
-    opacity: .85;
-  }
-  @keyframes fall {
-    0%   { transform: translateY(-10vh) rotate(0deg); }
-    100% { transform: translateY(115vh) rotate(540deg); }
-  }
-
-  .wrap { position: relative; z-index: 2; max-width: 1100px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
-
   /* ---- Marquee ticker ---- */
   .ticker {
     position: relative; z-index: 3;
-    background: var(--yellow); color: var(--ink);
+    background: #ffe600; color: #11002b;
     font-family: 'Bungee', sans-serif; text-transform: uppercase;
-    border-top: 4px solid var(--ink); border-bottom: 4px solid var(--ink);
+    border-top: 4px solid #11002b; border-bottom: 4px solid #11002b;
     overflow: hidden; white-space: nowrap; padding: .5rem 0;
     box-shadow: 0 0 30px rgba(255,230,0,.6);
   }
-  .ticker div { display: inline-block; padding-left: 100%; animation: scroll 18s linear infinite; }
+  .ticker div { display: inline-block; padding-left: 100%; animation: scroll 20s linear infinite; }
   .ticker span { margin: 0 1.5rem; letter-spacing: 1px; }
   @keyframes scroll { to { transform: translateX(-100%); } }
 
+  .wrap { position: relative; z-index: 2; max-width: 1150px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+
   /* ---- Title ---- */
-  header { text-align: center; padding: 2.5rem 0 1rem; }
+  header { text-align: center; padding: 2rem 0 1.5rem; }
   .title {
     font-family: 'Bungee Shade', cursive;
-    font-size: clamp(3rem, 13vw, 8.5rem);
+    font-size: clamp(2.4rem, 10vw, 6.5rem);
     line-height: .9; letter-spacing: 2px;
-    background: linear-gradient(90deg, var(--pink), var(--yellow), var(--cyan), var(--lime), var(--pink));
+    background: linear-gradient(90deg, #ff2bd6, #ffe600, #00f0ff, #7cff00, #ff2bd6);
     background-size: 300% 100%;
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
     filter: drop-shadow(0 0 18px rgba(255,43,214,.7));
-    animation: rainbow 6s linear infinite, bob 3s ease-in-out infinite;
+    animation: rainbow 6s linear infinite, bob 3.5s ease-in-out infinite;
   }
   @keyframes rainbow { to { background-position: 300% 0; } }
-  @keyframes bob { 50% { transform: translateY(-10px) rotate(-1.5deg); } }
+  @keyframes bob { 50% { transform: translateY(-10px) rotate(-1deg); } }
 
   .tagline {
-    margin-top: 1rem; font-size: clamp(1rem, 2.6vw, 1.5rem); font-weight: 700;
-    color: var(--cyan); text-shadow: 0 0 12px var(--cyan);
+    margin-top: 1rem; font-size: clamp(1rem, 2.6vw, 1.4rem); font-weight: 700;
+    color: #00f0ff; text-shadow: 0 0 12px #00f0ff;
     text-transform: uppercase; letter-spacing: 3px;
   }
-  .blink { animation: blink 1s steps(2) infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
 
-  /* ---- Section heading ---- */
-  .heading {
+  /* ---- Portal buttons ---- */
+  .portals {
+    display: grid; gap: 1.8rem; margin-top: 3rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  .portal {
+    position: relative; display: flex; flex-direction: column; justify-content: flex-end;
+    text-decoration: none; color: #fff;
+    min-height: 320px; border-radius: 26px; padding: 1.8rem 1.6rem;
+    border: 4px solid rgba(255,255,255,.85);
+    overflow: hidden; isolation: isolate;
+    box-shadow: 0 16px 40px rgba(0,0,0,.5);
+    transition: transform .2s ease, box-shadow .25s ease;
+  }
+  .portal:hover { transform: translateY(-12px) scale(1.025); box-shadow: 0 26px 55px rgba(0,0,0,.6); }
+  .portal:focus-visible { outline: 4px solid #fff; outline-offset: 4px; }
+
+  /* shared animated emoji layer */
+  .portal .deco {
+    position: absolute; inset: 0; z-index: -1; font-size: 2.4rem;
+    opacity: .9; pointer-events: none;
+  }
+  .portal .deco span { position: absolute; display: inline-block; }
+
+  .portal h2 {
     font-family: 'Bungee', sans-serif; text-transform: uppercase;
-    font-size: clamp(1.4rem, 4vw, 2.2rem); text-align: center;
-    margin: 3rem 0 2rem; color: var(--yellow);
-    text-shadow: 3px 3px 0 var(--pink), 6px 6px 0 rgba(0,0,0,.3);
+    font-size: clamp(1.6rem, 3.5vw, 2.3rem); line-height: 1;
+    letter-spacing: 1px; margin-bottom: .4rem;
+    text-shadow: 2px 3px 0 rgba(0,0,0,.45);
   }
+  .portal p {
+    font-weight: 700; font-size: .98rem; line-height: 1.35;
+    text-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+  .portal .enter {
+    margin-top: 1rem; align-self: flex-start;
+    font-family: 'Bungee', sans-serif; font-size: .8rem; letter-spacing: 1px;
+    text-transform: uppercase; color: #11002b; background: #fff;
+    padding: .5rem 1.2rem; border-radius: 50px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.4);
+    transition: transform .15s ease;
+  }
+  .portal:hover .enter { transform: translateX(6px); }
 
-  /* ---- Game grid ---- */
-  .grid {
-    display: grid; gap: 1.5rem;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  /* THEO — neon synthwave */
+  .portal.theo {
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,43,214,.55), transparent 50%),
+      radial-gradient(circle at 80% 30%, rgba(0,240,255,.5), transparent 50%),
+      repeating-linear-gradient(0deg, transparent 0 22px, rgba(0,240,255,.18) 22px 24px),
+      linear-gradient(135deg, #2d0052, #11002b);
   }
+  .portal.theo h2 { color: #ffe600; }
 
-  .card {
-    position: relative; display: block; text-decoration: none; color: #fff;
-    background: rgba(255,255,255,.06);
-    border: 3px solid var(--cyan);
-    border-radius: 22px; padding: 1.6rem 1.4rem 1.4rem;
-    backdrop-filter: blur(6px);
-    box-shadow: 0 0 0 0 rgba(0,240,255,.0), 0 14px 30px rgba(0,0,0,.35);
-    transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease;
-    overflow: hidden;
+  /* BEA — pastel clouds */
+  .portal.bea {
+    background:
+      radial-gradient(circle at 25% 25%, rgba(255,198,231,.85), transparent 55%),
+      radial-gradient(circle at 80% 20%, rgba(185,246,216,.85), transparent 55%),
+      linear-gradient(160deg, #eaf4ff, #f6ecff 50%, #fff0f6);
+    border-color: #fff;
   }
-  .card::after {
-    content: ""; position: absolute; inset: 0; border-radius: 19px;
-    background: radial-gradient(circle at 50% 0%, rgba(255,255,255,.18), transparent 60%);
-    pointer-events: none;
-  }
-  .card:hover {
-    transform: translateY(-10px) rotate(-1.5deg) scale(1.03);
-    border-color: var(--pink);
-    box-shadow: 0 0 28px var(--pink), 0 22px 40px rgba(0,0,0,.5);
-  }
-  .card:nth-child(even):hover { transform: translateY(-10px) rotate(1.5deg) scale(1.03); }
+  .portal.bea h2 { color: #7a5cc4; text-shadow: 2px 3px 0 rgba(255,255,255,.6); }
+  .portal.bea p { color: #5b4a86; text-shadow: 0 1px 3px rgba(255,255,255,.6); }
+  .portal.bea .enter { background: #7a5cc4; color: #fff; }
 
-  .card .icon {
-    font-size: 3.4rem; display: block; margin-bottom: .6rem;
-    filter: drop-shadow(0 0 10px rgba(255,255,255,.5));
-    transition: transform .2s ease;
+  /* ADIE — neon pool party */
+  .portal.adie {
+    background:
+      radial-gradient(circle at 22% 22%, rgba(255,43,206,.55), transparent 50%),
+      radial-gradient(circle at 80% 25%, rgba(11,211,255,.55), transparent 50%),
+      repeating-linear-gradient(115deg, transparent 0 18px, rgba(11,211,255,.2) 18px 22px),
+      linear-gradient(160deg, #0a1f5c, #03102e);
   }
-  .card:hover .icon { transform: scale(1.25) rotate(8deg); }
-
-  .card h3 {
-    font-family: 'Bungee', sans-serif; font-size: 1.3rem;
-    text-transform: uppercase; letter-spacing: .5px; margin-bottom: .35rem;
-  }
-  .card p { font-size: .95rem; opacity: .85; line-height: 1.35; }
-
-  .badge {
-    position: absolute; top: 14px; right: -36px;
-    background: var(--lime); color: var(--ink);
-    font-family: 'Bungee', sans-serif; font-size: .7rem; letter-spacing: 1px;
-    padding: .3rem 2.6rem; transform: rotate(35deg);
-    box-shadow: 0 2px 10px rgba(0,0,0,.4);
-  }
-  .badge.soon { background: var(--orange); }
-
-  .card.soon { border-color: var(--purple); border-style: dashed; opacity: .92; }
-  .card.soon:hover { border-color: var(--orange); box-shadow: 0 0 28px var(--orange), 0 22px 40px rgba(0,0,0,.5); }
+  .portal.adie h2 { color: #aaff00; }
 
   /* ---- Footer ---- */
   footer {
-    text-align: center; margin-top: 4rem; font-weight: 700;
-    color: var(--lime); text-shadow: 0 0 10px var(--lime); letter-spacing: 1px;
+    text-align: center; margin-top: 3.5rem; font-weight: 700;
+    color: #7cff00; text-shadow: 0 0 10px #7cff00; letter-spacing: 1px;
   }
-  footer .heart { color: var(--pink); }
+  footer .heart { color: #ff2bd6; }
   footer .ver {
     display: inline-block; margin-left: .4rem;
     font-family: 'Bungee', sans-serif; font-size: .72rem; letter-spacing: 1px;
-    color: var(--ink); background: var(--cyan);
+    color: #11002b; background: #00f0ff;
     padding: .12rem .6rem; border-radius: 999px;
-    box-shadow: 0 0 12px var(--cyan); text-shadow: none;
+    box-shadow: 0 0 12px #00f0ff; text-shadow: none;
   }
 
-  /* ---- Press start button ---- */
-  .cta { text-align: center; margin: 2.5rem 0 0; }
-  .cta a {
-    display: inline-block; font-family: 'Bungee', sans-serif; text-decoration: none;
-    text-transform: uppercase; font-size: 1.1rem; letter-spacing: 1px;
-    color: var(--ink); background: var(--yellow);
-    padding: .9rem 2.2rem; border-radius: 50px;
-    border: 3px solid #fff;
-    box-shadow: 0 0 24px var(--yellow);
-    animation: pulse 1.4s ease-in-out infinite;
+  @keyframes floatdeco {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    50%     { transform: translateY(-14px) rotate(8deg); }
   }
-  @keyframes pulse { 50% { transform: scale(1.07); box-shadow: 0 0 38px var(--pink); } }
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; }
@@ -213,90 +177,77 @@
 </head>
 <body>
 
-  <div class="grid-floor"></div>
-  <div class="confetti" id="confetti" aria-hidden="true"></div>
-
   <div class="ticker">
     <div>
-      <span>★ INSERT COIN ★</span><span>NEW HIGH SCORE!</span><span>🕹️ THEO'S ARCADE 🕹️</span>
+      <span>★ INSERT COIN ★</span><span>3 ARCADES · ONE DISTRICT</span><span>🎟️ PICK YOUR ARCADE 🎟️</span>
       <span>★ PLAYER 1 READY ★</span><span>VIBE CODED WITH LOVE</span><span>MORE GAMES INCOMING</span>
-      <span>★ INSERT COIN ★</span><span>NEW HIGH SCORE!</span><span>🕹️ THEO'S ARCADE 🕹️</span>
+      <span>★ INSERT COIN ★</span><span>3 ARCADES · ONE DISTRICT</span><span>🎟️ PICK YOUR ARCADE 🎟️</span>
       <span>★ PLAYER 1 READY ★</span><span>VIBE CODED WITH LOVE</span><span>MORE GAMES INCOMING</span>
     </div>
   </div>
 
   <div class="wrap">
     <header>
-      <h1 class="title">THEO'S<br>ARCADE</h1>
-      <p class="tagline">Insert Coin <span class="blink">▮</span> Press Start</p>
-      <div class="cta"><a href="#games">▼ Play Now ▼</a></div>
+      <h1 class="title">THE ARCADE<br>DISTRICT</h1>
+      <p class="tagline">Three Arcades · Pick Your Vibe</p>
     </header>
 
-    <h2 class="heading" id="games">🎮 The Game Cabinet 🎮</h2>
+    <div class="portals">
 
-    <div class="grid" id="grid">
-
-      <!-- ============================================================
-           HOW TO ADD A GAME:
-           Copy ONE card block below, point href at your game's .html,
-           swap the emoji icon, the <h3> title, and the <p> blurb.
-           Remove class="soon" + the COMING SOON badge once it's live,
-           and change the <div> back to <a href="...">.
-           ============================================================ -->
-
-      <!-- TEMPLATE (live game) — copy me:
-      <a class="card" href="your-game.html">
-        <span class="badge">PLAY</span>
-        <span class="icon">🎯</span>
-        <h3>Your Game</h3>
-        <p>A snappy one-line description of the fun.</p>
-      </a>
-      -->
-
-      <a class="card" href="pizza-panic.html">
-        <span class="badge">PLAY</span>
-        <span class="icon">🍕</span>
-        <h3>Pizza Panic</h3>
-        <p>Catch the pizza, donuts &amp; tacos — but dodge the broccoli, bones &amp; that angry sock!</p>
+      <a class="portal theo" href="theo-arcade.html">
+        <div class="deco" aria-hidden="true"></div>
+        <h2>Theo's<br>Arcade</h2>
+        <p>110% funky neon. Pizza Panic, Theo Says &amp; Sandwich Stacker — all live and ready to play.</p>
+        <span class="enter">Enter ▶</span>
       </a>
 
-      <a class="card" href="theo-says.html">
-        <span class="badge">PLAY</span>
-        <span class="icon">🎨</span>
-        <h3>Theo Says</h3>
-        <p>Watch the glowing pattern, then play it back. Each round adds a step — how far can your memory go?</p>
+      <a class="portal bea" href="bea-arcade.html">
+        <div class="deco" aria-hidden="true"></div>
+        <h2>Bea's<br>Arcade</h2>
+        <p>Soft pastel skies, drifting clouds &amp; happy axolotls. Cosy little games coming soon.</p>
+        <span class="enter">Enter ▶</span>
       </a>
 
-      <a class="card" href="sandwich-stacker.html">
-        <span class="badge">PLAY</span>
-        <span class="icon">🥪</span>
-        <h3>Sandwich Stacker</h3>
-        <p>Drop ingredients to build the tallest sandwich. Nail the alignment or watch your overhang topple!</p>
+      <a class="portal adie" href="adie-arcade.html">
+        <div class="deco" aria-hidden="true"></div>
+        <h2>Adie's<br>Arcade</h2>
+        <p>Neon pool-party energy — people, music &amp; splashes. The party's just getting started.</p>
+        <span class="enter">Enter ▶</span>
       </a>
 
     </div>
 
     <footer>
-      <p>Vibe-coded with <span class="heart">♥</span> by Theo · More games dropping soon <span class="ver" id="ver">v7</span></p>
+      <p>Vibe-coded with <span class="heart">♥</span> · Welcome to the District <span class="ver">v1</span></p>
     </footer>
   </div>
 
 <script>
-  // Sprinkle floating emoji confetti across the screen.
+  // Sprinkle a few themed, gently-floating emoji into each portal's backdrop.
   (function () {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const emojis = ['🕹️','👾','🎮','⭐','🍄','💥','🎲','🚀','💫','🔥'];
-    const box = document.getElementById('confetti');
-    const COUNT = 22;
-    for (let i = 0; i < COUNT; i++) {
-      const s = document.createElement('span');
-      s.textContent = emojis[i % emojis.length];
-      s.style.left = (Math.random() * 100) + 'vw';
-      s.style.animationDuration = (6 + Math.random() * 8) + 's';
-      s.style.animationDelay = (-Math.random() * 12) + 's';
-      s.style.fontSize = (1 + Math.random() * 1.6) + 'rem';
-      box.appendChild(s);
-    }
+    const sets = {
+      theo: ['🕹️','👾','⭐','💥','🎮'],
+      bea:  ['☁️','🦎','🌸','💗','🫧'],
+      adie: ['🕺','🎵','🏊','🪩','🍹'],
+    };
+    document.querySelectorAll('.portal').forEach(function (portal) {
+      const key = portal.classList.contains('theo') ? 'theo'
+                : portal.classList.contains('bea')  ? 'bea' : 'adie';
+      const emojis = sets[key];
+      const deco = portal.querySelector('.deco');
+      for (let i = 0; i < 6; i++) {
+        const s = document.createElement('span');
+        s.textContent = emojis[i % emojis.length];
+        s.style.left = (8 + Math.random() * 80) + '%';
+        s.style.top = (8 + Math.random() * 70) + '%';
+        s.style.fontSize = (1.4 + Math.random() * 1.8) + 'rem';
+        s.style.opacity = (0.5 + Math.random() * 0.4).toFixed(2);
+        s.style.animation = 'floatdeco ' + (4 + Math.random() * 4).toFixed(1) + 's ease-in-out infinite';
+        s.style.animationDelay = (-Math.random() * 5).toFixed(1) + 's';
+        deco.appendChild(s);
+      }
+    });
   })();
 </script>
 </body>
