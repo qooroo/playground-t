@@ -426,14 +426,14 @@
       { emoji:'🧸', name:'bear', w:42, h:44 }
     ];
     const highTypes = [
-      { emoji:'⭐', name:'star', w:46, h:44 },
-      { emoji:'🎈', name:'balloon', w:42, h:58 },
-      { emoji:'🫧', name:'bubble', w:52, h:46 }
+      { emoji:'⭐', name:'star curtain', w:52, h:148 },
+      { emoji:'🎈', name:'balloon curtain', w:54, h:154 },
+      { emoji:'🫧', name:'bubble curtain', w:56, h:144 }
     ];
     const spec = pick(isFlying ? highTypes : lowTypes);
     obstacles.push({
       x: W + 44,
-      y: isFlying ? groundY - spec.h - rand(26, 34) : groundY - spec.h + 6,
+      y: isFlying ? groundY - spec.h - rand(20, 28) : groundY - spec.h + 6,
       w: spec.w,
       h: spec.h,
       emoji: spec.emoji,
@@ -653,6 +653,23 @@
       ctx.beginPath();
       ctx.ellipse(ob.x + ob.w / 2, ob.y + ob.h + 6, ob.w * .35, 5, 0, 0, Math.PI * 2);
       ctx.fill();
+      if (ob.flying) {
+        ctx.save();
+        ctx.globalAlpha = .72;
+        ctx.strokeStyle = 'rgba(116,84,189,.38)';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([8, 8]);
+        ctx.beginPath();
+        ctx.moveTo(ob.x + ob.w / 2, ob.y + 14 + bobY);
+        ctx.lineTo(ob.x + ob.w / 2, ob.y + ob.h - 14 + bobY);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,.72)';
+        ctx.beginPath();
+        ctx.arc(ob.x + ob.w / 2, ob.y + 18 + bobY, 12, 0, Math.PI * 2);
+        ctx.arc(ob.x + ob.w / 2, ob.y + ob.h - 18 + bobY, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
       ctx.fillText(ob.emoji, ob.x + ob.w / 2, ob.y + ob.h / 2 + bobY);
     }
     ctx.restore();
