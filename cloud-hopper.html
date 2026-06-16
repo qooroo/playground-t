@@ -433,7 +433,7 @@
     const spec = pick(isFlying ? highTypes : lowTypes);
     obstacles.push({
       x: W + 44,
-      y: isFlying ? groundY - 102 - rand(0, 18) : groundY - spec.h + 6,
+      y: isFlying ? groundY - spec.h - rand(26, 34) : groundY - spec.h + 6,
       w: spec.w,
       h: spec.h,
       emoji: spec.emoji,
