@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>☁️ Cloud Hopper — Bea's Arcade</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Quicksand:wght@500;700&display=swap');
+
+  :root {
+    --lavender:#c9b6ff;
+    --mint:#b9f6d8;
+    --peach:#ffd6c2;
+    --sky:#bfe3ff;
+    --pink:#ffc6e7;
+    --grape:#7454bd;
+    --plum:#4f3b78;
+    --white:#fffafd;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    font-family:'Quicksand', system-ui, sans-serif;
+    color:var(--plum);
+    background:
+      radial-gradient(circle at 18% 15%, rgba(255,198,231,.65), transparent 42%),
+      radial-gradient(circle at 86% 24%, rgba(185,246,216,.65), transparent 44%),
+      linear-gradient(180deg, #dff2ff 0%, #f6ecff 56%, #fff1f8 100%);
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow:hidden;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+
+  .topbar {
+    width:100%;
+    max-width:760px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    padding:.7rem 1rem .3rem;
+  }
+  .topbar a {
+    font-family:'Baloo 2', cursive;
+    color:#fff;
+    background:var(--grape);
+    text-decoration:none;
+    font-weight:800;
+    font-size:.9rem;
+    padding:.38rem .9rem;
+    border-radius:999px;
+    box-shadow:0 6px 16px rgba(116,84,189,.28);
+    white-space:nowrap;
+  }
+  .topbar a:hover { background:#5f43a4; transform:translateX(-3px); }
+  h1 {
+    font-family:'Baloo 2', cursive;
+    font-weight:800;
+    font-size:clamp(1.25rem, 4.8vw, 2.2rem);
+    color:var(--grape);
+    text-shadow:2px 2px 0 #fff, 0 8px 18px rgba(116,84,189,.22);
+    white-space:nowrap;
+  }
+  .mute {
+    width:42px;
+    height:42px;
+    border:3px solid #fff;
+    border-radius:50%;
+    background:var(--pink);
+    color:var(--plum);
+    cursor:pointer;
+    font-size:1.25rem;
+    box-shadow:0 6px 16px rgba(116,84,189,.18);
+  }
+  .mute.off { opacity:.48; }
+
+  .hud {
+    width:100%;
+    max-width:760px;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:.55rem;
+    padding:.2rem 1rem .55rem;
+    font-weight:800;
+  }
+  .pill {
+    min-height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.35rem;
+    padding:.4rem .65rem;
+    border:3px solid rgba(255,255,255,.9);
+    border-radius:999px;
+    background:rgba(255,255,255,.68);
+    box-shadow:0 8px 20px rgba(116,84,189,.13);
+    text-align:center;
+    white-space:nowrap;
+  }
+  .pill strong { color:var(--grape); }
+
+  .stage {
+    position:relative;
+    width:calc(100% - 1rem);
+    max-width:760px;
+    flex:1;
+    min-height:360px;
+    max-height:680px;
+    margin:0 .5rem;
+    border:4px solid rgba(255,255,255,.95);
+    border-radius:22px;
+    overflow:hidden;
+    background:linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.1));
+    box-shadow:0 18px 40px rgba(116,84,189,.2), inset 0 0 50px rgba(255,255,255,.45);
+  }
+  canvas { display:block; width:100%; height:100%; }
+
+  .overlay {
+    position:absolute;
+    inset:0;
+    z-index:5;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:.9rem;
+    padding:1.35rem;
+    text-align:center;
+    background:rgba(246,236,255,.82);
+    backdrop-filter:blur(5px);
+  }
+  .overlay.hidden { display:none; }
+  .overlay .big { font-size:clamp(3rem, 14vw, 5.2rem); line-height:1; }
+  .overlay h2 {
+    font-family:'Baloo 2', cursive;
+    font-size:clamp(2rem, 8vw, 3.4rem);
+    line-height:.95;
+    color:var(--grape);
+    text-shadow:2px 2px 0 #fff;
+  }
+  .overlay p {
+    max-width:520px;
+    line-height:1.45;
+    font-size:1.03rem;
+  }
+  .btn {
+    font-family:'Baloo 2', cursive;
+    font-weight:800;
+    cursor:pointer;
+    border:3px solid #fff;
+    border-radius:999px;
+    padding:.72rem 1.8rem;
+    font-size:1.15rem;
+    color:#fff;
+    background:var(--grape);
+    box-shadow:0 8px 20px rgba(116,84,189,.3);
+    transition:transform .12s, box-shadow .2s, background .2s;
+  }
+  .btn:hover { transform:translateY(-2px) scale(1.04); background:#5f43a4; box-shadow:0 12px 24px rgba(116,84,189,.38); }
+  .hi { color:var(--grape); font-weight:800; }
+
+  .touchbar {
+    width:100%;
+    max-width:760px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:.75rem;
+    padding:.6rem 1rem .75rem;
+  }
+  .touchbar button {
+    min-height:48px;
+    border:3px solid #fff;
+    border-radius:999px;
+    background:rgba(255,255,255,.74);
+    color:var(--grape);
+    font-family:'Baloo 2', cursive;
+    font-weight:800;
+    font-size:1.05rem;
+    box-shadow:0 8px 18px rgba(116,84,189,.16);
+    touch-action:none;
+  }
+  .touchbar button:active { transform:translateY(2px); background:var(--mint); }
+
+  footer {
+    padding:0 1rem .45rem;
+    font-size:.82rem;
+    font-weight:700;
+    color:rgba(79,59,120,.66);
+  }
+
+  @media (max-width:560px) {
+    .hud { grid-template-columns:1fr 1fr; }
+    .pill.level { grid-column:1 / -1; }
+    .stage { min-height:330px; border-radius:18px; }
+    .topbar { gap:.45rem; }
+    .topbar a { font-size:.78rem; padding:.35rem .7rem; }
+    .mute { width:38px; height:38px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <a href="bea-arcade.html">◄ Bea's Arcade</a>
+    <h1>☁️ Cloud Hopper</h1>
+    <button class="mute" id="muteBtn" type="button" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+  </div>
+
+  <div class="hud">
+    <div class="pill">Distance <strong><span id="distance">0</span>m</strong></div>
+    <div class="pill">Best <strong><span id="best">0</span>m</strong></div>
+    <div class="pill level">Sky <strong><span id="level">Calm</span></strong></div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="game"></canvas>
+
+    <div class="overlay" id="startScreen">
+      <div class="big">☁️🦎☁️</div>
+      <h2>Cloud Hopper</h2>
+      <p>Run across the cloud road, hop over low trouble, and duck under the floaty stuff. The longest distance becomes Bea's best score.</p>
+      <button class="btn" id="startBtn" type="button">▶ Start Run</button>
+    </div>
+
+    <div class="overlay hidden" id="overScreen">
+      <div class="big" id="overEmoji">🌈</div>
+      <h2 id="overTitle">Soft Landing!</h2>
+      <p id="overMsg"></p>
+      <p>Distance: <b id="finalDistance">0m</b><br><span class="hi">Best: <span id="finalBest">0m</span></span></p>
+      <button class="btn" id="againBtn" type="button">↻ Run Again</button>
+    </div>
+  </div>
+
+  <div class="touchbar" role="group" aria-label="Touch controls">
+    <button id="jumpBtn" type="button" aria-label="Jump">☁️ Jump</button>
+    <button id="duckBtn" type="button" aria-label="Duck">🌙 Duck</button>
+  </div>
+
+  <footer>Bea's Arcade · Keep hopping higher</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const stage = document.getElementById('stage');
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const distanceEl = document.getElementById('distance');
+  const bestEl = document.getElementById('best');
+  const levelEl = document.getElementById('level');
+  const startScreen = document.getElementById('startScreen');
+  const overScreen = document.getElementById('overScreen');
+  const startBtn = document.getElementById('startBtn');
+  const againBtn = document.getElementById('againBtn');
+  const jumpBtn = document.getElementById('jumpBtn');
+  const duckBtn = document.getElementById('duckBtn');
+  const muteBtn = document.getElementById('muteBtn');
+  const overEmojiEl = document.getElementById('overEmoji');
+  const overTitleEl = document.getElementById('overTitle');
+  const overMsgEl = document.getElementById('overMsg');
+  const finalDistanceEl = document.getElementById('finalDistance');
+  const finalBestEl = document.getElementById('finalBest');
+
+  let W = 0;
+  let H = 0;
+  let dpr = 1;
+  let groundY = 0;
+  let state = 'idle';
+  let lastT = 0;
+  let muted = false;
+  let actx = null;
+
+  let player;
+  let obstacles = [];
+  let cloudPuffs = [];
+  let sparkles = [];
+  let distance = 0;
+  let speed = 0;
+  let spawnTimer = 0;
+  let nextSpawn = 0;
+  let duckHeld = false;
+  let newBest = false;
+
+  const bestKey = 'cloudHopperBestDistance';
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const pick = arr => arr[(Math.random() * arr.length) | 0];
+
+  function getBest() {
+    try { return parseInt(localStorage.getItem(bestKey) || '0', 10) || 0; }
+    catch (e) { return 0; }
+  }
+
+  function saveBest(v) {
+    try { localStorage.setItem(bestKey, String(v)); }
+    catch (e) {}
+  }
+
+  function ensureAudio() {
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+    } catch (e) {}
+  }
+
+  function beep(freq, dur, type, gain) {
+    if (muted) return;
+    try {
+      ensureAudio();
+      const osc = actx.createOscillator();
+      const amp = actx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      osc.connect(amp);
+      amp.connect(actx.destination);
+      const t = actx.currentTime;
+      amp.gain.setValueAtTime(gain || .075, t);
+      amp.gain.exponentialRampToValueAtTime(.0001, t + (dur || .12));
+      osc.start(t);
+      osc.stop(t + (dur || .12));
+    } catch (e) {}
+  }
+
+  function resize() {
+    const rect = stage.getBoundingClientRect();
+    W = rect.width;
+    H = rect.height;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    groundY = H * .73;
+    if (player) {
+      player.x = Math.max(76, W * .18);
+      player.y = Math.min(player.y, groundY - player.h);
+    }
+    rebuildCloudPuffs();
+  }
+
+  function rebuildCloudPuffs() {
+    cloudPuffs = [];
+    const count = Math.ceil(W / 52) + 6;
+    for (let i = 0; i < count; i++) {
+      cloudPuffs.push({
+        x: i * 52 - 80,
+        y: groundY + rand(-10, 10),
+        r: rand(24, 42),
+        tone: Math.random() > .45 ? '#fff' : '#eef7ff'
+      });
+    }
+  }
+
+  function reset() {
+    distance = 0;
+    speed = 255;
+    spawnTimer = 0;
+    nextSpawn = 900;
+    obstacles = [];
+    sparkles = [];
+    duckHeld = false;
+    newBest = false;
+    player = {
+      x: Math.max(76, W * .18),
+      y: groundY - 72,
+      w: 42,
+      h: 68,
+      vy: 0,
+      onGround: true,
+      ducking: false,
+      invincible: 0,
+      step: 0
+    };
+    updateHud();
+    rebuildCloudPuffs();
+  }
+
+  function startGame() {
+    resize();
+    reset();
+    ensureAudio();
+    state = 'running';
+    startScreen.classList.add('hidden');
+    overScreen.classList.add('hidden');
+    beep(660, .1, 'triangle', .08);
+    setTimeout(() => beep(880, .12, 'triangle', .07), 80);
+  }
+
+  function jump() {
+    if (state === 'idle' || state === 'over') {
+      startGame();
+      return;
+    }
+    if (state !== 'running' || !player.onGround) return;
+    player.vy = -720;
+    player.onGround = false;
+    player.ducking = false;
+    beep(760, .11, 'sine', .07);
+    for (let i = 0; i < 8; i++) {
+      sparkles.push({ x: player.x + rand(-8, 34), y: groundY + rand(2, 12), vx: rand(-60, 24), vy: rand(-70, -20), life: rand(.35, .6), max: .6, color: pick(['#ffc6e7', '#b9f6d8', '#c9b6ff']) });
+    }
+  }
+
+  function setDuck(v) {
+    duckHeld = v;
+    if (!player || state !== 'running') return;
+    player.ducking = duckHeld && player.onGround;
+  }
+
+  function spawnObstacle() {
+    const difficulty = clamp(distance / 1200, 0, 1);
+    const flyingChance = .35 + difficulty * .25;
+    const isFlying = Math.random() < flyingChance;
+    const lowTypes = [
+      { emoji:'🌂', name:'umbrella', w:44, h:46 },
+      { emoji:'🪁', name:'kite', w:48, h:48 },
+      { emoji:'🧸', name:'bear', w:42, h:44 }
+    ];
+    const highTypes = [
+      { emoji:'⭐', name:'star', w:46, h:44 },
+      { emoji:'🎈', name:'balloon', w:42, h:58 },
+      { emoji:'🫧', name:'bubble', w:52, h:46 }
+    ];
+    const spec = pick(isFlying ? highTypes : lowTypes);
+    obstacles.push({
+      x: W + 44,
+      y: isFlying ? groundY - 102 - rand(0, 18) : groundY - spec.h + 6,
+      w: spec.w,
+      h: spec.h,
+      emoji: spec.emoji,
+      flying: isFlying,
+      bob: rand(0, Math.PI * 2),
+      passed: false
+    });
+  }
+
+  function updateHud() {
+    const meters = Math.floor(distance);
+    distanceEl.textContent = meters;
+    bestEl.textContent = Math.max(getBest(), meters);
+    levelEl.textContent = meters < 350 ? 'Calm' : meters < 850 ? 'Breezy' : meters < 1500 ? 'Zoomy' : 'Wild';
+  }
+
+  function gameOver(hit) {
+    state = 'over';
+    const meters = Math.floor(distance);
+    const oldBest = getBest();
+    newBest = meters > oldBest;
+    if (newBest) saveBest(meters);
+
+    finalDistanceEl.textContent = meters + 'm';
+    finalBestEl.textContent = Math.max(oldBest, meters) + 'm';
+    bestEl.textContent = Math.max(oldBest, meters);
+    overEmojiEl.textContent = newBest ? '🏆' : hit.emoji;
+    overTitleEl.textContent = newBest ? 'New Best!' : 'Soft Landing!';
+    overMsgEl.textContent = newBest
+      ? 'Bea has a new cloud-distance record.'
+      : 'That ' + hit.name + ' ended the run.';
+    overScreen.classList.remove('hidden');
+    beep(180, .2, 'sawtooth', .08);
+    setTimeout(() => beep(newBest ? 740 : 130, .22, newBest ? 'triangle' : 'sawtooth', .07), 90);
+  }
+
+  function rectsOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function getPlayerBox() {
+    const ducking = player.ducking && player.onGround;
+    return {
+      x: player.x + 9,
+      y: ducking ? player.y + 30 : player.y + 7,
+      w: player.w - 15,
+      h: ducking ? 34 : player.h - 14
+    };
+  }
+
+  function update(dt) {
+    if (state !== 'running') return;
+
+    distance += speed * dt / 12;
+    speed = Math.min(510, speed + dt * 9);
+    spawnTimer += dt * 1000;
+    if (spawnTimer >= nextSpawn) {
+      spawnTimer = 0;
+      spawnObstacle();
+      const difficulty = clamp(distance / 1500, 0, 1);
+      nextSpawn = rand(1050 - difficulty * 360, 1420 - difficulty * 450);
+    }
+
+    player.step += dt * (player.onGround ? 10 : 3);
+    const feetWerePlanted = player.onGround || Math.abs((player.y + player.h) - groundY) < 2;
+    player.ducking = duckHeld && feetWerePlanted;
+    player.h = player.ducking ? 42 : 68;
+    if (feetWerePlanted) player.y = groundY - player.h;
+    player.y += player.vy * dt;
+    player.vy += 2100 * dt;
+    const floorY = groundY - player.h;
+    if (player.y >= floorY) {
+      if (!player.onGround && player.vy > 0) beep(360, .05, 'triangle', .035);
+      player.y = floorY;
+      player.vy = 0;
+      player.onGround = true;
+    } else {
+      player.onGround = false;
+    }
+
+    for (const puff of cloudPuffs) {
+      puff.x -= speed * dt * .76;
+      if (puff.x < -90) {
+        puff.x += cloudPuffs.length * 52;
+        puff.y = groundY + rand(-10, 10);
+        puff.r = rand(24, 42);
+      }
+    }
+
+    for (const ob of obstacles) {
+      ob.x -= speed * dt;
+      ob.bob += dt * 4;
+      if (!ob.passed && ob.x + ob.w < player.x) {
+        ob.passed = true;
+        beep(980, .05, 'sine', .032);
+      }
+    }
+    obstacles = obstacles.filter(ob => ob.x > -90);
+
+    for (const sp of sparkles) {
+      sp.x += sp.vx * dt;
+      sp.y += sp.vy * dt;
+      sp.vy += 120 * dt;
+      sp.life -= dt;
+    }
+    sparkles = sparkles.filter(sp => sp.life > 0);
+
+    const pbox = getPlayerBox();
+    for (const ob of obstacles) {
+      const bobY = ob.flying ? Math.sin(ob.bob) * 8 : 0;
+      const obox = { x: ob.x + 8, y: ob.y + bobY + 8, w: ob.w - 16, h: ob.h - 16 };
+      if (rectsOverlap(pbox, obox)) {
+        gameOver(ob);
+        break;
+      }
+    }
+
+    updateHud();
+  }
+
+  function drawSky() {
+    const t = distance * .004;
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#dff2ff');
+    grad.addColorStop(.52, '#f4edff');
+    grad.addColorStop(1, '#fff1f8');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.globalAlpha = .34;
+    for (let i = 0; i < 9; i++) {
+      const x = ((i * 150 - (t * (28 + i * 2))) % (W + 200)) - 120;
+      const y = 48 + (i % 4) * 52 + Math.sin(t + i) * 8;
+      drawCloud(x, y, 44 + (i % 3) * 10, '#ffffff');
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = .7;
+    ctx.fillStyle = '#fff6b5';
+    ctx.beginPath();
+    ctx.arc(W - 72, 70, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCloud(x, y, r, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y + 8, r * .54, 0, Math.PI * 2);
+    ctx.arc(x + r * .48, y - 6, r * .62, 0, Math.PI * 2);
+    ctx.arc(x + r, y + 6, r * .5, 0, Math.PI * 2);
+    ctx.arc(x + r * 1.38, y + 11, r * .42, 0, Math.PI * 2);
+    ctx.rect(x - r * .2, y + 10, r * 1.8, r * .42);
+    ctx.fill();
+  }
+
+  function drawGround() {
+    ctx.save();
+    for (const puff of cloudPuffs) {
+      drawCloud(puff.x, puff.y, puff.r, puff.tone);
+    }
+    ctx.globalAlpha = .92;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, groundY + 24, W, H - groundY);
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(116,84,189,.13)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([18, 20]);
+    ctx.beginPath();
+    ctx.moveTo(0, groundY + 16);
+    ctx.lineTo(W, groundY + 16);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPlayer() {
+    const x = player.x;
+    const y = player.y;
+    const ducking = player.ducking && player.onGround;
+    const bounce = player.onGround ? Math.sin(player.step) * 2 : 0;
+
+    ctx.save();
+    ctx.translate(x, y + bounce);
+
+    ctx.fillStyle = 'rgba(116,84,189,.14)';
+    ctx.beginPath();
+    ctx.ellipse(player.w * .52, player.h + 5, ducking ? 25 : 20, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = ducking ? '42px serif' : '52px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🦎', player.w * .5, ducking ? 26 : 35);
+
+    ctx.restore();
+
+    if (!player.onGround) {
+      ctx.save();
+      ctx.globalAlpha = .7;
+      drawCloud(x - 16, y + player.h + 14, 18, '#fff');
+      ctx.restore();
+    }
+  }
+
+  function drawObstacles() {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '44px serif';
+    for (const ob of obstacles) {
+      const bobY = ob.flying ? Math.sin(ob.bob) * 8 : 0;
+      ctx.fillStyle = 'rgba(116,84,189,.14)';
+      ctx.beginPath();
+      ctx.ellipse(ob.x + ob.w / 2, ob.y + ob.h + 6, ob.w * .35, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText(ob.emoji, ob.x + ob.w / 2, ob.y + ob.h / 2 + bobY);
+    }
+    ctx.restore();
+  }
+
+  function drawSparkles() {
+    ctx.save();
+    for (const sp of sparkles) {
+      ctx.globalAlpha = clamp(sp.life / sp.max, 0, 1);
+      ctx.fillStyle = sp.color;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawPausedScene() {
+    drawSky();
+    drawGround();
+    if (player) drawPlayer();
+  }
+
+  function draw() {
+    drawSky();
+    drawSparkles();
+    drawGround();
+    drawObstacles();
+    if (player) drawPlayer();
+
+  }
+
+  function frame(now) {
+    if (!lastT) lastT = now;
+    const dt = Math.min((now - lastT) / 1000, .033);
+    lastT = now;
+    update(dt);
+    if (!player) drawPausedScene();
+    else draw();
+    requestAnimationFrame(frame);
+  }
+
+  function keyDown(e) {
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+      e.preventDefault();
+      jump();
+    }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      e.preventDefault();
+      setDuck(true);
+    }
+  }
+
+  function keyUp(e) {
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      e.preventDefault();
+      setDuck(false);
+    }
+  }
+
+  function bindHold(btn, down, up) {
+    btn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (btn.setPointerCapture) btn.setPointerCapture(e.pointerId);
+      down();
+    });
+    btn.addEventListener('pointerup', function (e) {
+      e.preventDefault();
+      up();
+    });
+    btn.addEventListener('pointercancel', up);
+    btn.addEventListener('lostpointercapture', up);
+  }
+
+  startBtn.addEventListener('click', startGame);
+  againBtn.addEventListener('click', startGame);
+  window.addEventListener('keydown', keyDown, { passive:false });
+  window.addEventListener('keyup', keyUp, { passive:false });
+  bindHold(jumpBtn, jump, function () {});
+  bindHold(duckBtn, function () { setDuck(true); }, function () { setDuck(false); });
+  stage.addEventListener('pointerdown', function (e) {
+    if (e.target.closest && e.target.closest('button')) return;
+    jump();
+  });
+  muteBtn.addEventListener('click', function () {
+    muted = !muted;
+    muteBtn.classList.toggle('off', muted);
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+  });
+  window.addEventListener('resize', resize);
+
+  bestEl.textContent = getBest();
+  resize();
+  reset();
+  state = 'idle';
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
