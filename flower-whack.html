@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🌸 Flower Whack — Bea's Arcade</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Quicksand:wght@500;700&display=swap');
+
+  :root {
+    --lavender:#c9b6ff;
+    --mint:#b9f6d8;
+    --peach:#ffd6c2;
+    --sky:#bfe3ff;
+    --pink:#ffc6e7;
+    --grape:#7454bd;
+    --plum:#4f3b78;
+    --white:#fffafd;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; }
+  body {
+    font-family:'Quicksand', system-ui, sans-serif;
+    color:var(--plum);
+    background:
+      radial-gradient(circle at 18% 15%, rgba(255,198,231,.65), transparent 42%),
+      radial-gradient(circle at 86% 24%, rgba(185,246,216,.65), transparent 44%),
+      linear-gradient(180deg, #dff2ff 0%, #f6ecff 56%, #fff1f8 100%);
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow:hidden;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+
+  .topbar {
+    width:100%;
+    max-width:760px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    padding:.7rem 1rem .3rem;
+  }
+  .topbar a {
+    font-family:'Baloo 2', cursive;
+    color:#fff;
+    background:var(--grape);
+    text-decoration:none;
+    font-weight:800;
+    font-size:.9rem;
+    padding:.38rem .9rem;
+    border-radius:999px;
+    box-shadow:0 6px 16px rgba(116,84,189,.28);
+    white-space:nowrap;
+  }
+  .topbar a:hover { background:#5f43a4; transform:translateX(-3px); }
+  h1 {
+    font-family:'Baloo 2', cursive;
+    font-weight:800;
+    font-size:clamp(1.25rem, 4.8vw, 2.2rem);
+    color:var(--grape);
+    text-shadow:2px 2px 0 #fff, 0 8px 18px rgba(116,84,189,.22);
+    white-space:nowrap;
+  }
+  .mute {
+    width:42px;
+    height:42px;
+    border:3px solid #fff;
+    border-radius:50%;
+    background:var(--pink);
+    color:var(--plum);
+    cursor:pointer;
+    font-size:1.25rem;
+    box-shadow:0 6px 16px rgba(116,84,189,.18);
+    flex-shrink:0;
+  }
+  .mute.off { opacity:.48; }
+
+  .hud {
+    width:100%;
+    max-width:760px;
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:.55rem;
+    padding:.2rem 1rem .55rem;
+    font-weight:800;
+  }
+  .pill {
+    min-height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.35rem;
+    padding:.4rem .65rem;
+    border:3px solid rgba(255,255,255,.9);
+    border-radius:999px;
+    background:rgba(255,255,255,.68);
+    box-shadow:0 8px 20px rgba(116,84,189,.13);
+    text-align:center;
+    white-space:nowrap;
+  }
+  .pill strong { color:var(--grape); }
+  .pill.low strong { color:#d8576b; }
+
+  .stage {
+    position:relative;
+    width:calc(100% - 1rem);
+    max-width:760px;
+    flex:1;
+    min-height:360px;
+    max-height:680px;
+    margin:0 .5rem;
+    border:4px solid rgba(255,255,255,.95);
+    border-radius:22px;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at 20% 18%, rgba(255,255,255,.55), transparent 40%),
+      linear-gradient(180deg, #eafaff 0%, #f3edff 55%, #e7f8ec 100%);
+    box-shadow:0 18px 40px rgba(116,84,189,.2), inset 0 0 50px rgba(255,255,255,.45);
+  }
+
+  .stage.shake { animation:shake .32s ease; }
+  @keyframes shake {
+    0%,100% { transform:translate(0,0); }
+    20% { transform:translate(-7px,3px); }
+    40% { transform:translate(6px,-4px); }
+    60% { transform:translate(-5px,4px); }
+    80% { transform:translate(5px,-2px); }
+  }
+
+  /* Drifting decorative clouds inside the stage */
+  .scenery { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+  .scenery .cloud {
+    position:absolute; font-size:2.6rem; opacity:.7;
+    animation:floatcloud linear infinite;
+  }
+  @keyframes floatcloud {
+    from { transform:translateX(-25%); }
+    to   { transform:translateX(125%); }
+  }
+
+  .grid {
+    position:absolute;
+    inset:0;
+    z-index:1;
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    grid-template-rows:repeat(3, 1fr);
+    gap:clamp(.4rem, 2vw, 1rem);
+    padding:clamp(.6rem, 3vw, 1.4rem);
+  }
+
+  .hole {
+    position:relative;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    border:none;
+    background:transparent;
+    cursor:pointer;
+    padding:0;
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  /* The soft earth mound */
+  .hole::after {
+    content:"";
+    position:absolute;
+    left:8%;
+    right:8%;
+    bottom:0;
+    height:38%;
+    border-radius:50% 50% 42% 42% / 70% 70% 30% 30%;
+    background:linear-gradient(180deg, #d7b8ff 0%, #b48ce8 60%, #9a72d4 100%);
+    box-shadow:inset 0 6px 10px rgba(255,255,255,.4), 0 6px 14px rgba(116,84,189,.22);
+  }
+  /* Dark opening of the hole */
+  .hole::before {
+    content:"";
+    position:absolute;
+    left:24%;
+    right:24%;
+    bottom:24%;
+    height:16%;
+    border-radius:50%;
+    background:radial-gradient(ellipse at center, #5b3f93 0%, #4a3179 70%);
+    z-index:1;
+  }
+
+  .critter {
+    position:relative;
+    z-index:2;
+    font-size:clamp(1.8rem, 8.5vw, 3.4rem);
+    line-height:1;
+    transform:translateY(120%) scale(.4);
+    opacity:0;
+    transition:transform .16s cubic-bezier(.34,1.56,.64,1), opacity .12s;
+    filter:drop-shadow(0 4px 6px rgba(116,84,189,.3));
+    margin-bottom:14%;
+    pointer-events:none;
+  }
+  .hole.up .critter { transform:translateY(0) scale(1); opacity:1; }
+  .hole.bonk .critter { transform:translateY(8%) scale(.7) rotate(-12deg); opacity:.85; }
+
+  /* Floating score popup */
+  .pop {
+    position:absolute;
+    z-index:6;
+    font-family:'Baloo 2', cursive;
+    font-weight:800;
+    font-size:clamp(1.1rem, 4vw, 1.7rem);
+    pointer-events:none;
+    animation:floatup .7s ease-out forwards;
+    text-shadow:1px 1px 0 #fff, -1px 1px 0 #fff, 1px -1px 0 #fff, -1px -1px 0 #fff;
+  }
+  .pop.plus { color:var(--grape); }
+  .pop.gold { color:#e8a300; }
+  .pop.minus { color:#d8576b; }
+  @keyframes floatup {
+    from { transform:translate(-50%, 0) scale(.6); opacity:0; }
+    20%  { transform:translate(-50%, -10px) scale(1.1); opacity:1; }
+    to   { transform:translate(-50%, -64px) scale(1); opacity:0; }
+  }
+
+  /* Sparkle particle */
+  .spark {
+    position:absolute;
+    z-index:5;
+    font-size:1rem;
+    pointer-events:none;
+    animation:sparkfly .55s ease-out forwards;
+  }
+  @keyframes sparkfly {
+    from { transform:translate(-50%,-50%) scale(.3); opacity:1; }
+    to   { transform:translate(var(--dx), var(--dy)) scale(1); opacity:0; }
+  }
+
+  .overlay {
+    position:absolute;
+    inset:0;
+    z-index:10;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:.9rem;
+    padding:1.35rem;
+    text-align:center;
+    background:rgba(246,236,255,.86);
+    backdrop-filter:blur(5px);
+  }
+  .overlay.hidden { display:none; }
+  .overlay .big { font-size:clamp(3rem, 14vw, 5.2rem); line-height:1; }
+  .overlay h2 {
+    font-family:'Baloo 2', cursive;
+    font-size:clamp(2rem, 8vw, 3.4rem);
+    line-height:.95;
+    color:var(--grape);
+    text-shadow:2px 2px 0 #fff;
+  }
+  .overlay p {
+    max-width:520px;
+    line-height:1.45;
+    font-size:1.03rem;
+  }
+  .legend {
+    display:flex;
+    flex-wrap:wrap;
+    gap:.5rem .9rem;
+    justify-content:center;
+    font-weight:700;
+    font-size:.95rem;
+  }
+  .legend span { white-space:nowrap; }
+  .btn {
+    font-family:'Baloo 2', cursive;
+    font-weight:800;
+    cursor:pointer;
+    border:3px solid #fff;
+    border-radius:999px;
+    padding:.72rem 1.8rem;
+    font-size:1.15rem;
+    color:#fff;
+    background:var(--grape);
+    box-shadow:0 8px 20px rgba(116,84,189,.3);
+    transition:transform .12s, box-shadow .2s, background .2s;
+  }
+  .btn:hover { transform:translateY(-2px) scale(1.04); background:#5f43a4; box-shadow:0 12px 24px rgba(116,84,189,.38); }
+  .hi { color:var(--grape); font-weight:800; }
+
+  footer {
+    padding:.5rem 1rem .55rem;
+    font-size:.82rem;
+    font-weight:700;
+    color:rgba(79,59,120,.66);
+  }
+
+  @media (max-width:560px) {
+    .stage { min-height:340px; border-radius:18px; }
+    .topbar { gap:.45rem; }
+    .topbar a { font-size:.78rem; padding:.35rem .7rem; }
+    .mute { width:38px; height:38px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage.shake { animation:none !important; }
+    .scenery { display:none; }
+    .critter { transition:opacity .12s; }
+    .pop { animation-duration:.4s; }
+    .spark { display:none; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <a href="bea-arcade.html">◄ Bea's Arcade</a>
+    <h1>🌸 Flower Whack</h1>
+    <button class="mute" id="muteBtn" type="button" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+  </div>
+
+  <div class="hud">
+    <div class="pill" id="timePill">Time <strong><span id="time">60</span>s</strong></div>
+    <div class="pill">Score <strong><span id="score">0</span></strong></div>
+    <div class="pill">Best <strong><span id="best">0</span></strong></div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="scenery" id="scenery" aria-hidden="true"></div>
+    <div class="grid" id="grid" role="group" aria-label="Flower garden"></div>
+
+    <div class="overlay" id="startScreen">
+      <div class="big">🌸🐝🌟</div>
+      <h2>Flower Whack</h2>
+      <p>Tap the flowers as they pop up before they duck away. Grab the golden flower for big points — but watch out, <b>don't whack the bees!</b></p>
+      <div class="legend">
+        <span>🌸 +1</span>
+        <span>🌟 +5</span>
+        <span>🐝 −3</span>
+      </div>
+      <button class="btn" id="startBtn" type="button">▶ Start (60s)</button>
+    </div>
+
+    <div class="overlay hidden" id="overScreen">
+      <div class="big" id="overEmoji">🌷</div>
+      <h2 id="overTitle">Time's Up!</h2>
+      <p id="overMsg"></p>
+      <p>Score: <b id="finalScore">0</b><br><span class="hi">Best: <span id="finalBest">0</span></span></p>
+      <button class="btn" id="againBtn" type="button">↻ Play Again</button>
+    </div>
+  </div>
+
+  <footer>Bea's Arcade · Mind the bees 🐝</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  const stage = document.getElementById('stage');
+  const grid = document.getElementById('grid');
+  const scenery = document.getElementById('scenery');
+  const timeEl = document.getElementById('time');
+  const timePill = document.getElementById('timePill');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const startScreen = document.getElementById('startScreen');
+  const overScreen = document.getElementById('overScreen');
+  const startBtn = document.getElementById('startBtn');
+  const againBtn = document.getElementById('againBtn');
+  const muteBtn = document.getElementById('muteBtn');
+  const overEmojiEl = document.getElementById('overEmoji');
+  const overTitleEl = document.getElementById('overTitle');
+  const overMsgEl = document.getElementById('overMsg');
+  const finalScoreEl = document.getElementById('finalScore');
+  const finalBestEl = document.getElementById('finalBest');
+
+  const HOLES = 9;
+  const GAME_SECONDS = 60;
+  const bestKey = 'flowerWhackBest';
+  const FLOWERS = ['🌸', '🌺', '🌷', '🌻', '🌼'];
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const pick = arr => arr[(Math.random() * arr.length) | 0];
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let state = 'idle';        // idle | running | over
+  let muted = false;
+  let actx = null;
+  let score = 0;
+  let timeLeft = GAME_SECONDS;
+  let countdownId = null;
+  let spawnId = null;
+  let lastTickT = 0;
+  const holes = [];          // { el, critter, kind, occupied, hideId }
+
+  function getBest() {
+    try { return parseInt(localStorage.getItem(bestKey) || '0', 10) || 0; }
+    catch (e) { return 0; }
+  }
+  function saveBest(v) {
+    try { localStorage.setItem(bestKey, String(v)); }
+    catch (e) {}
+  }
+
+  /* ---------- Audio (Web Audio, no asset files) ---------- */
+  function ensureAudio() {
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+    } catch (e) {}
+  }
+  function beep(freq, dur, type, gain) {
+    if (muted) return;
+    try {
+      ensureAudio();
+      const osc = actx.createOscillator();
+      const amp = actx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      osc.connect(amp);
+      amp.connect(actx.destination);
+      const t = actx.currentTime;
+      amp.gain.setValueAtTime(gain || .07, t);
+      amp.gain.exponentialRampToValueAtTime(.0001, t + (dur || .12));
+      osc.start(t);
+      osc.stop(t + (dur || .12));
+    } catch (e) {}
+  }
+  function sndFlower() { beep(720, .1, 'triangle', .07); setTimeout(() => beep(960, .09, 'triangle', .05), 55); }
+  function sndGold() {
+    [660, 880, 1180].forEach((f, i) => setTimeout(() => beep(f, .12, 'triangle', .07), i * 70));
+  }
+  function sndBee() { beep(150, .22, 'sawtooth', .09); setTimeout(() => beep(110, .2, 'sawtooth', .07), 70); }
+  function sndEnd(isBest) {
+    beep(520, .16, 'triangle', .07);
+    setTimeout(() => beep(isBest ? 920 : 680, .22, 'triangle', .07), 130);
+    if (isBest) setTimeout(() => beep(1180, .24, 'triangle', .06), 260);
+  }
+
+  /* ---------- Build the grid ---------- */
+  function buildGrid() {
+    grid.innerHTML = '';
+    holes.length = 0;
+    for (let i = 0; i < HOLES; i++) {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'hole';
+      el.setAttribute('aria-label', 'Garden hole ' + (i + 1));
+      const critter = document.createElement('span');
+      critter.className = 'critter';
+      el.appendChild(critter);
+      grid.appendChild(el);
+      const hole = { el, critter, kind: null, occupied: false, whacked: false, hideId: null };
+      holes.push(hole);
+      el.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        whack(hole, e);
+      });
+    }
+  }
+
+  function buildScenery() {
+    scenery.innerHTML = '';
+    if (reduceMotion) return;
+    for (let i = 0; i < 3; i++) {
+      const c = document.createElement('span');
+      c.className = 'cloud';
+      c.textContent = '☁️';
+      c.style.top = (8 + i * 26) + '%';
+      c.style.fontSize = (2 + Math.random() * 1.6) + 'rem';
+      c.style.animationDuration = (26 + Math.random() * 18) + 's';
+      c.style.animationDelay = (-Math.random() * 30) + 's';
+      c.style.opacity = (0.5 + Math.random() * 0.3).toFixed(2);
+      scenery.appendChild(c);
+    }
+  }
+
+  /* ---------- Difficulty curve (ramps as time runs out) ---------- */
+  // progress 0 at start -> 1 at end of run
+  function progress() { return clamp(1 - timeLeft / GAME_SECONDS, 0, 1); }
+  function spawnInterval() { return rand(900 - progress() * 520, 1150 - progress() * 600); }
+  function upDuration() { return rand(1100 - progress() * 500, 1350 - progress() * 600); }
+
+  function chooseKind() {
+    const r = Math.random();
+    if (r < 0.16) return 'bee';        // ~1 in 6
+    if (r < 0.16 + 0.105) return 'gold'; // ~1 in 8 of remainder-ish
+    return 'flower';
+  }
+
+  function emojiFor(kind) {
+    if (kind === 'bee') return '🐝';
+    if (kind === 'gold') return '🌟';
+    return pick(FLOWERS);
+  }
+
+  /* ---------- Pop-up lifecycle ---------- */
+  function popUp(hole) {
+    const kind = chooseKind();
+    hole.kind = kind;
+    hole.occupied = true;
+    hole.whacked = false;
+    hole.critter.textContent = emojiFor(kind);
+    hole.el.classList.remove('bonk');
+    // force reflow so the transition replays reliably
+    void hole.critter.offsetWidth;
+    hole.el.classList.add('up');
+
+    let dur = upDuration();
+    if (kind === 'gold') dur *= 0.62; // golden is fleeting
+    hole.hideId = setTimeout(() => hideHole(hole), dur);
+  }
+
+  function hideHole(hole) {
+    if (hole.hideId) { clearTimeout(hole.hideId); hole.hideId = null; }
+    hole.el.classList.remove('up', 'bonk');
+    hole.occupied = false;
+    hole.whacked = false;
+    hole.kind = null;
+  }
+
+  function spawnTick() {
+    if (state !== 'running') return;
+    const empty = holes.filter(h => !h.occupied);
+    if (empty.length) {
+      popUp(pick(empty));
+    }
+    spawnId = setTimeout(spawnTick, spawnInterval());
+  }
+
+  /* ---------- Whacking ---------- */
+  function whack(hole, e) {
+    if (state !== 'running' || !hole.occupied || hole.whacked) return;
+    hole.whacked = true; // prevents double-whack; hole stays occupied until it retreats
+    const kind = hole.kind;
+    const rect = hole.el.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const cx = (e ? e.clientX : rect.left + rect.width / 2) - stageRect.left;
+    const cy = (e ? e.clientY : rect.top + rect.height / 2) - stageRect.top;
+
+    hole.el.classList.add('bonk');
+
+    if (kind === 'bee') {
+      addScore(-3);
+      floatText(cx, cy, '−3', 'minus');
+      shake();
+      sndBee();
+    } else if (kind === 'gold') {
+      addScore(5);
+      floatText(cx, cy, '+5', 'gold');
+      sparkle(cx, cy, 10);
+      sndGold();
+    } else {
+      addScore(1);
+      floatText(cx, cy, '+1', 'plus');
+      sparkle(cx, cy, 5);
+      sndFlower();
+    }
+    // retreat quickly after the bonk (tracked so the spawner won't reuse it mid-retreat)
+    if (hole.hideId) clearTimeout(hole.hideId);
+    hole.hideId = setTimeout(() => hideHole(hole), 110);
+  }
+
+  function addScore(delta) {
+    score = Math.max(0, score + delta);
+    scoreEl.textContent = score;
+  }
+
+  /* ---------- Visual effects ---------- */
+  function floatText(x, y, text, cls) {
+    const el = document.createElement('div');
+    el.className = 'pop ' + cls;
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    stage.appendChild(el);
+    setTimeout(() => el.remove(), 720);
+  }
+
+  function sparkle(x, y, n) {
+    if (reduceMotion) return;
+    const bits = ['✨', '💫', '⭐', '🌟'];
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement('div');
+      s.className = 'spark';
+      s.textContent = pick(bits);
+      s.style.left = x + 'px';
+      s.style.top = y + 'px';
+      const ang = rand(0, Math.PI * 2);
+      const dist = rand(20, 60);
+      s.style.setProperty('--dx', (Math.cos(ang) * dist) + 'px');
+      s.style.setProperty('--dy', (Math.sin(ang) * dist) + 'px');
+      stage.appendChild(s);
+      setTimeout(() => s.remove(), 560);
+    }
+  }
+
+  function shake() {
+    if (reduceMotion) return;
+    stage.classList.remove('shake');
+    void stage.offsetWidth;
+    stage.classList.add('shake');
+  }
+
+  /* ---------- Clock ---------- */
+  function tick() {
+    timeLeft -= 1;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      updateClock();
+      endGame();
+      return;
+    }
+    updateClock();
+  }
+
+  function updateClock() {
+    timeEl.textContent = timeLeft;
+    timePill.classList.toggle('low', timeLeft <= 10);
+  }
+
+  /* ---------- Game flow ---------- */
+  function clearTimers() {
+    if (countdownId) { clearInterval(countdownId); countdownId = null; }
+    if (spawnId) { clearTimeout(spawnId); spawnId = null; }
+  }
+
+  function clearHoles() {
+    holes.forEach(hideHole);
+  }
+
+  function startGame() {
+    clearTimers();
+    clearHoles();
+    ensureAudio();
+    score = 0;
+    timeLeft = GAME_SECONDS;
+    state = 'running';
+    scoreEl.textContent = '0';
+    updateClock();
+    startScreen.classList.add('hidden');
+    overScreen.classList.add('hidden');
+    beep(660, .1, 'triangle', .07);
+    setTimeout(() => beep(880, .12, 'triangle', .06), 90);
+    countdownId = setInterval(tick, 1000);
+    spawnId = setTimeout(spawnTick, 600);
+  }
+
+  function endGame() {
+    state = 'over';
+    clearTimers();
+    clearHoles();
+    const oldBest = getBest();
+    const isBest = score > oldBest;
+    if (isBest) saveBest(score);
+    const shownBest = Math.max(oldBest, score);
+    bestEl.textContent = shownBest;
+    finalScoreEl.textContent = score;
+    finalBestEl.textContent = shownBest;
+    overEmojiEl.textContent = isBest ? '🏆' : (score === 0 ? '🌱' : '🌷');
+    overTitleEl.textContent = isBest ? 'New Best!' : "Time's Up!";
+    overMsgEl.textContent = isBest
+      ? 'A brand-new flower-whacking record for Bea!'
+      : score === 0
+        ? 'The garden got away this time — give it another go!'
+        : 'Lovely whacking! Can you beat it next round?';
+    overScreen.classList.remove('hidden');
+    sndEnd(isBest);
+  }
+
+  /* ---------- Wiring ---------- */
+  startBtn.addEventListener('click', startGame);
+  againBtn.addEventListener('click', startGame);
+  muteBtn.addEventListener('click', function () {
+    muted = !muted;
+    muteBtn.classList.toggle('off', muted);
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    if (!muted) ensureAudio();
+  });
+
+  // Keyboard: keys 1-9 map to grid holes (top-left to bottom-right)
+  window.addEventListener('keydown', function (e) {
+    if (e.repeat) return;
+    if (state !== 'running') {
+      if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); startGame(); }
+      return;
+    }
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 9) {
+      e.preventDefault();
+      whack(holes[n - 1], null);
+    }
+  });
+
+  buildGrid();
+  buildScenery();
+  bestEl.textContent = getBest();
+  updateClock();
+})();
+</script>
+</body>
+</html>
