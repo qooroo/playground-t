@@ -132,23 +132,22 @@
 
 <script>
 (() => {
-  // ---- config ----
-  const BALL_RADIUS     = 16;
-  const NET_H           = 180;       // net top from bottom
-  const NET_Y           = NET_H;     // net top Y coordinate
-  const GRAVITY         = 980;
-  const SET_POWER_Y     = 420;       // upward velocity on set
-  const SPIKE_POWER_Y   = 560;       // downward velocity on spike
-  const SPIKE_POWER_X   = 320;       // forward horizontal speed on spike
-  const OPPONENT_DELAY  = 0.55;      // opponent reaction delay (seconds)
-  const OPPONENT_POWER_Y= 380;       // opponent set power
-  const OPPONENT_POWER_X= 280;       // opponent return power
-  const MAX_HIT_TIME    = 3.0;       // seconds before ball falls if not hit
-  const LIVES           = 3;
+  // ---- config — physics tuned for playable rally ----
+  // Court ~560x500. Net at center, height 35% of court.
+  // Ball goes up ~380px from start, peaks well above net.
+  // Spike from peak clears net and lands within court.
+  const GRAVITY       = 700;
+  const NET_H_RATIO   = 0.35;
+  const BALL_R        = 14;
+  const SPIKE_SPEED   = 450;
+  const SPIKE_VY      = 150;
+  const SET_POWER     = 700;
+  const SPIKE_MIN_H   = 250;   // spike only when ball above this Y (clears net)
+  const LIVES         = 3;
 
-  const stage  = document.getElementById('stage');
-  const canvas = document.getElementById('gameCanvas');
-  const ctx    = canvas.getContext('2d');
+  const stage   = document.getElementById('stage');
+  const canvas  = document.getElementById('gameCanvas');
+  const ctx     = canvas.getContext('2d');
   const scoreEl = document.getElementById('scoreEl');
   const streakEl = document.getElementById('streakEl');
   const startScreen = document.getElementById('startScreen');
@@ -163,7 +162,7 @@
   const overTitle   = document.getElementById('overTitle');
   const overMsg     = document.getElementById('overMsg');
 
-  let W, H, courtY;  // court bottom Y
+  let W, H, courtY, netX, netTop;
 
   function resize(){
     const rect = stage.getBoundingClientRect();
@@ -176,6 +175,8 @@
     canvas.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     courtY = H - 20;
+    netX = W * 0.5;
+    netTop = courtY - H * NET_H_RATIO;
     ctx.imageSmoothingEnabled = false;
   }
 
@@ -203,14 +204,11 @@
   });
 
   // ---- game state ----
-  let state = 'idle'; // idle | countdown | playing | over
-  let ball, playerSide, opponentSide;
-  let score, lives, streak, bestStreak;
-  let hitPhase; // none | ready_to_spike | none
-  let hitTimer = 0;
+  let state = 'idle';
+  let ball, score, lives, streak, bestStreak;
+  let flash = 0;
   let lastT = 0;
   let animId;
-  let comboPopTimer = 0;
 
   function best(){
     try { return parseInt(localStorage.getItem('volley_best')||'0', 10); }
@@ -220,19 +218,16 @@
     try { localStorage.setItem('volley_best', String(v)); } catch(e){}
   }
 
-  function resetBall(side){
-    const netX = W * 0.5;
-    const fromPlayer = side === 'player';
+  function resetBall(fromPlayer){
+    const startX = fromPlayer ? netX * 0.55 : netX + netX * 0.25;
     ball = {
-      x: fromPlayer ? W * 0.25 : W * 0.75,
-      y: courtY - 60,
-      vx: 0,
-      vy: 0,
-      side: side,
-      age: 0
+      x: startX,
+      y: courtY - 30,
+      vx: fromPlayer ? 50 : -100,
+      vy: -SET_POWER,
+      phase: 'set'
     };
-    hitPhase = 'none';
-    hitTimer = 0;
+    flash = 0;
   }
 
   function startCountdown(){
@@ -267,7 +262,7 @@
     bestStreak = Math.max(bestStreak || 0, best());
     state = 'playing';
     overScreen.classList.add('hidden');
-    resetBall('player');
+    resetBall(true);
     updateHud();
     lastT = performance.now();
     if(!animId) animId = requestAnimationFrame(frame);
@@ -288,136 +283,6 @@
     setTimeout(()=> el.remove(), 700);
   }
 
-  // ---- opponent AI ----
-  function opponentThink(){
-    if(ball.side !== 'opponent') return;
-    hitTimer += 1/60;
-    if(hitTimer >= OPPONENT_DELAY){
-      hitTimer = 0;
-      // opponent returns the ball to player side
-      const netX = W * 0.5;
-      ball.x = netX + 30 + Math.random() * 40;
-      ball.y = courtY - 70;
-      ball.vx = -SPIKE_POWER_X * (0.8 + Math.random() * 0.4);
-      ball.vy = -OPPONENT_POWER_Y * (0.85 + Math.random() * 0.3);
-      ball.side = 'player';
-      blip(330, .15, 'triangle');
-    }
-  }
-
-  // ---- update ----
-  function update(dt){
-    hitTimer += dt;
-
-    // ball physics
-    ball.vy += GRAVITY * dt;
-    ball.x += ball.vx * dt;
-    ball.y += ball.vy * dt;
-    ball.age += dt;
-
-    // ground check (ball dropped)
-    if(ball.y >= courtY - BALL_RADIUS){
-      ball.y = courtY - BALL_RADIUS;
-      // ball landed
-      if(ball.side === 'player'){
-        // player side — opponent scored
-        lives--;
-        streak = 0;
-        updateHud();
-        blip(150, .3, 'sawtooth');
-        if(lives <= 0){
-          endGame();
-          return;
-        }
-        resetBall('opponent');
-        hitTimer = 0;
-        return;
-      } else {
-        // opponent side — player scored!
-        score += 10 + streak * 5;
-        streak++;
-        if(streak % 5 === 0){
-          showComboPop(W/2, H/2 - 30, streak + 'x COMBO! 🔥');
-        }
-        blip(880, .12, 'square');
-        setTimeout(()=> blip(1100, .15, 'square'), 80);
-        updateHud();
-        resetBall('opponent');
-        hitTimer = 0;
-        return;
-      }
-    }
-
-    // wall bounces
-    if(ball.x < BALL_RADIUS){
-      ball.x = BALL_RADIUS;
-      ball.vx = Math.abs(ball.vx) * 0.7;
-      blip(220, .08, 'sine');
-    }
-    if(ball.x > W - BALL_RADIUS){
-      ball.x = W - BALL_RADIUS;
-      ball.vx = -Math.abs(ball.vx) * 0.7;
-      blip(220, .08, 'sine');
-    }
-
-    // net collision
-    const netX = W * 0.5;
-    if(ball.x > netX - BALL_RADIUS - 4 && ball.x < netX + BALL_RADIUS + 4){
-      if(ball.y < courtY - NET_H + BALL_RADIUS){
-        // ball hits the net
-        ball.y = (ball.y < courtY - NET_H/2) ? courtY - NET_H - BALL_RADIUS : courtY - NET_H/2 + BALL_RADIUS;
-        ball.vx *= -0.3;
-        blip(110, .2, 'square');
-        // if ball is stuck, it falls — side determined by position
-        if(ball.age > MAX_HIT_TIME){
-          ball.side = ball.x < netX ? 'player' : 'opponent';
-        }
-      }
-    }
-
-    // age penalty — if ball isn't hit in time, determine side by position
-    if(ball.age > MAX_HIT_TIME && hitPhase !== 'ready_to_spike'){
-      // ball falls — side by current position
-      if(ball.x < W * 0.5){
-        // player's court
-        ball.side = 'player';
-        lives--;
-        streak = 0;
-        updateHud();
-        blip(150, .3, 'sawtooth');
-        if(lives <= 0){ endGame(); return; }
-        resetBall('opponent');
-        hitTimer = 0;
-        return;
-      } else {
-        // opponent's court
-        ball.side = 'opponent';
-        score += 10 + streak * 5;
-        streak++;
-        updateHud();
-        blip(880, .12, 'square');
-        resetBall('opponent');
-        hitTimer = 0;
-        return;
-      }
-    }
-
-    // opponent AI
-    if(ball.side === 'opponent' && hitTimer < OPPONENT_DELAY){
-      opponentThink();
-    }
-
-    // player set: ball on player side, low enough
-    if(hitPhase === 'ready_to_spike'){
-      hitTimer += dt;
-      if(hitTimer > 0.8){
-        hitPhase = 'none';
-      }
-    }
-
-    updateHud();
-  }
-
   function endGame(){
     state = 'over';
     saveBest(streak);
@@ -432,20 +297,123 @@
     overScreen.classList.remove('hidden');
   }
 
-  // ---- draw ----
+  function scorePoint(){
+    score += 10 + streak * 5;
+    streak++;
+    if(streak % 5 === 0){
+      showComboPop(netX, netTop + 30, streak + 'x COMBO! 🔥');
+    }
+    blip(880, .12, 'square');
+    setTimeout(()=> blip(1100, .15, 'square'), 80);
+    updateHud();
+    // AI serves ball from opponent side toward player
+    ball.x = netX + netX * 0.25;
+    ball.y = courtY - 30;
+    ball.vx = -100;
+    ball.vy = -SET_POWER;
+    ball.phase = 'set';
+    flash = 1;
+  }
+
+  function playerMissed(){
+    lives--;
+    streak = 0;
+    updateHud();
+    blip(150, .3, 'sawtooth');
+    if(lives <= 0){
+      endGame();
+    } else {
+      resetBall(true);
+    }
+  }
+
+  function update(dt){
+    // ball physics
+    ball.vy += GRAVITY * dt;
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+
+    // wall bounces
+    if(ball.x < BALL_R){
+      ball.x = BALL_R;
+      ball.vx = Math.abs(ball.vx) * 0.4;
+    }
+    if(ball.x > W - BALL_R){
+      ball.x = W - BALL_R;
+      ball.vx = -Math.abs(ball.vx) * 0.4;
+    }
+
+    // net collision
+    if(ball.x > netX - 4 - BALL_R && ball.x < netX + 4 + BALL_R
+       && ball.y > netTop && ball.y < courtY){
+      if(ball.vx > 0){
+        ball.x = netX - 4 - BALL_R;
+      } else {
+        ball.x = netX + 4 + BALL_R;
+      }
+      ball.vx *= -0.2;
+      blip(110, .2, 'square');
+    }
+
+    // ---- state machine ----
+
+    // PHASE SET: ball going up → switch to fall at peak
+    if(ball.phase === 'set' || ball.phase === 'serve'){
+      if(ball.vy >= 0){
+        ball.phase = 'fall';
+        blip(400, .08, 'sine');
+      }
+    }
+
+    // PHASE FALL: ball on player's side — player can spike
+    if(ball.phase === 'fall' && ball.x < netX){
+      if(ball.y < SPIKE_MIN_H){
+        // Spike available — wait for player tap
+      }
+    }
+
+    // PHASE SPIKE: ball flying toward opponent side
+    if(ball.phase === 'spike'){
+      // Ball crossed the net — SCORE!
+      if(ball.x > netX + BALL_R){
+        ball.phase = 'scored';
+        scorePoint();
+        return;
+      }
+      // Ball hit net and bounced back — player missed
+      if(ball.vx < 0 && ball.x < netX){
+        ball.vy = 0;
+        ball.vx = 0;
+        playerMissed();
+        return;
+      }
+    }
+
+    // Ground check — ball landed
+    if(ball.y >= courtY - BALL_R){
+      ball.y = courtY - BALL_R;
+      ball.vy = 0;
+      ball.vx = 0;
+      if(ball.phase === 'fall' || ball.phase === 'spike'){
+        playerMissed();
+      }
+      return;
+    }
+
+    // Flash decay
+    if(flash > 0) flash -= dt * 6;
+
+    updateHud();
+  }
+
   function draw(){
     ctx.clearRect(0, 0, W, H);
-
-    // court lines
-    ctx.save();
-    const netX = W * 0.5;
 
     // court floor
     ctx.fillStyle = 'rgba(11,211,255,.08)';
     ctx.fillRect(0, courtY - 4, W, 4);
 
     // net
-    const netTop = courtY - NET_H;
     ctx.strokeStyle = 'rgba(255,43,206,.8)';
     ctx.lineWidth = 3;
     ctx.shadowColor = '#ff2bce';
@@ -463,24 +431,25 @@
     ctx.fillRect(netX - 3, netTop - 3, 6, 8);
     ctx.shadowBlur = 0;
 
-    // court divider (dashed)
-    ctx.setLineDash([8,8]);
-    ctx.strokeStyle = 'rgba(255,255,255,.15)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(netX, courtY);
-    ctx.lineTo(netX, courtY - 20);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // side zones
+    ctx.fillStyle = 'rgba(11,211,255,.04)';
+    ctx.fillRect(0, 0, netX - 4, courtY);
+    ctx.fillStyle = 'rgba(255,43,206,.04)';
+    ctx.fillRect(netX + 4, 0, W - netX - 4, courtY);
 
-    ctx.restore();
+    // flash
+    if(flash > 0){
+      ctx.save();
+      ctx.fillStyle = `rgba(255,43,206,${flash * 0.25})`;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
 
     // draw ball
     if(ball){
       ctx.save();
       const bx = ball.x, by = ball.y;
-      // ball glow
-      const glowSize = 20 + Math.min(streak * 2, 16);
+      const glowSize = 16 + Math.min(streak * 2, 16);
       ctx.shadowColor = streak >= 5 ? '#ff2bce' : streak >= 3 ? '#ffd23f' : '#0bd3ff';
       ctx.shadowBlur = glowSize;
       ctx.font = '28px serif';
@@ -490,15 +459,7 @@
       ctx.restore();
     }
 
-    // player zone indicator
-    ctx.save();
-    ctx.fillStyle = 'rgba(11,211,255,.04)';
-    ctx.fillRect(0, 0, netX - 4, courtY);
-    ctx.fillStyle = 'rgba(255,43,206,.04)';
-    ctx.fillRect(netX + 4, 0, W - netX - 4, courtY);
-    ctx.restore();
-
-    // lives display
+    // lives
     ctx.save();
     ctx.font = '16px serif';
     ctx.textAlign = 'right';
@@ -508,14 +469,32 @@
     }
     ctx.restore();
 
-    // player set indicator
-    if(hitPhase === 'ready_to_spike'){
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255,210,63,.5)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4,4]);
-      ctx.strokeRect(netX - 6, netTop + 10, netX - 12, courtY - netTop - 10);
-      ctx.restore();
+    // phase hints
+    if(state === 'playing' && ball){
+      if(ball.phase === 'set' || ball.phase === 'serve'){
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,.3)';
+        ctx.font = '13px Poppins, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('⬆ Rising...', ball.x, courtY - 15);
+        ctx.restore();
+      }
+      if(ball.phase === 'fall' && ball.x < netX && ball.y < SPIKE_MIN_H){
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,210,63,.55)';
+        ctx.font = 'bold 14px Audiowide, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚡ TAP TO SPIKE! ⚡', ball.x, netTop - 10);
+        ctx.restore();
+      }
+      if(ball.phase === 'spike'){
+        ctx.save();
+        ctx.fillStyle = 'rgba(11,211,255,.35)';
+        ctx.font = '13px Poppins, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏐 Over!', netX + 60, netTop + 30);
+        ctx.restore();
+      }
     }
   }
 
@@ -532,32 +511,18 @@
   function onTap(e){
     if(e) e.preventDefault();
     if(state !== 'playing') return;
-    if(hitPhase === 'none' && ball && ball.side === 'player'){
-      // SET — push ball up
-      const canSet = ball.y > courtY - NET_H - 20 && ball.age < MAX_HIT_TIME * 0.8;
-      if(canSet){
-        ball.vy = -SET_POWER_Y;
-        ball.vx = 40 + Math.random() * 20; // slight drift toward net
-        ball.age = 0;
-        hitPhase = 'ready_to_spike';
-        hitTimer = 0;
-        blip(550, .1, 'sine');
-        blip(825, .08, 'sine');
-      }
-    } else if(hitPhase === 'ready_to_spike'){
-      // SPIKE — smash ball down on opponent side
-      const canSpike = ball.y < courtY - 40;
-      if(canSpike){
-        ball.vx = SPIKE_POWER_X;
-        ball.vy = SPIKE_POWER_Y * 0.6; // slight downward angle
-        ball.side = 'opponent';
-        hitPhase = 'none';
-        hitTimer = 0;
-        blip(200, .15, 'sawtooth');
-        // screen shake effect via glow flash
-        stage.style.boxShadow = '0 0 50px #ff2bce, inset 0 0 60px rgba(0,0,0,.4)';
-        setTimeout(()=>{ stage.style.boxShadow = '0 0 28px rgba(11,211,255,.4), inset 0 0 40px rgba(0,0,0,.35)'; }, 120);
-      }
+    if(!ball) return;
+
+    // Only allow spike when ball is falling on player side and high enough
+    if(ball.phase === 'fall' && ball.x < netX && ball.y < SPIKE_MIN_H){
+      // SPIKE — send ball over the net
+      ball.vx = SPIKE_SPEED;
+      ball.vy = SPIKE_VY;
+      ball.phase = 'spike';
+      flash = 1;
+      blip(200, .15, 'sawtooth');
+      stage.style.boxShadow = '0 0 50px #ff2bce, inset 0 0 60px rgba(0,0,0,.4)';
+      setTimeout(()=>{ stage.style.boxShadow = '0 0 28px rgba(11,211,255,.4), inset 0 0 40px rgba(0,0,0,.35)'; }, 120);
     }
   }
 
@@ -571,7 +536,7 @@
   bestStreak = best();
   lastT = performance.now();
   startScreen.classList.remove('hidden');
-  draw(); // initial draw
+  draw();
   animId = requestAnimationFrame(frame);
 
   window.addEventListener('resize', resize);
