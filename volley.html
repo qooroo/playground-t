@@ -52,7 +52,10 @@
     box-shadow:0 0 28px rgba(11,211,255,.4), inset 0 0 40px rgba(0,0,0,.35);
     overflow:hidden; background:linear-gradient(180deg,rgba(11,211,255,.08),rgba(0,0,0,.25));
   }
-  canvas { display:block; width:100%; height:100%; }
+  canvas {
+    display:block; width:100%; height:100%;
+    pointer-events:none;
+  }
 
   .countdown {
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -114,8 +117,8 @@
     <div class="overlay hidden" id="startScreen">
       <span class="big">🏐</span>
       <h2>NEON VOLLEY</h2>
-      <p>Tap to <b>set</b> the ball up, then tap again to <b>spike</b> it across!</p>
-      <p class="hint">Time your spikes to score. Build combos for bonus points!</p>
+      <p>Ball goes up on your side — tap to send it over the net!</p>
+      <p class="hint">The closer to the peak you hit, the stronger the spike.</p>
       <button class="btn" id="startBtn">Play</button>
     </div>
     <div class="overlay hidden" id="overScreen">
@@ -132,17 +135,14 @@
 
 <script>
 (() => {
-  // ---- config — physics tuned for playable rally ----
-  // Court ~560x500. Net at center, height 35% of court.
-  // Ball goes up ~380px from start, peaks well above net.
-  // Spike from peak clears net and lands within court.
-  const GRAVITY       = 700;
+  // ---- config ----
+  const GRAVITY       = 600;
   const NET_H_RATIO   = 0.35;
   const BALL_R        = 14;
-  const SPIKE_SPEED   = 450;
-  const SPIKE_VY      = 150;
-  const SET_POWER     = 700;
-  const SPIKE_MIN_H   = 250;   // spike only when ball above this Y (clears net)
+  const MIN_POWER     = 180;   // minimum forward speed
+  const MAX_POWER     = 260;   // maximum forward speed
+  const AI_RETURN_VY  = 380;
+  const AI_SERVE_X    = -100;
   const LIVES         = 3;
 
   const stage   = document.getElementById('stage');
@@ -204,11 +204,13 @@
   });
 
   // ---- game state ----
-  let state = 'idle';
+  let gameState = 'idle';
   let ball, score, lives, streak, bestStreak;
   let flash = 0;
   let lastT = 0;
   let animId;
+  let lastX = netX;  // track previous x for net-crossing detection
+  let hitPower = 0;  // power used on last hit
 
   function best(){
     try { return parseInt(localStorage.getItem('volley_best')||'0', 10); }
@@ -218,20 +220,30 @@
     try { localStorage.setItem('volley_best', String(v)); } catch(e){}
   }
 
-  function resetBall(fromPlayer){
-    const startX = fromPlayer ? netX * 0.55 : netX + netX * 0.25;
-    ball = {
-      x: startX,
-      y: courtY - 30,
-      vx: fromPlayer ? 50 : -100,
-      vy: -SET_POWER,
-      phase: 'set'
-    };
+  function launchBall(fromOpponent){
+    lastX = netX;
+    if(fromOpponent){
+      ball = {
+        x: netX + 50,
+        y: courtY - 40,
+        vx: -160,
+        vy: -400,
+        phase: 'rising'
+      };
+    } else {
+      ball = {
+        x: netX * 0.4,
+        y: courtY - 40,
+        vx: 30,
+        vy: -550,
+        phase: 'rising'
+      };
+    }
     flash = 0;
   }
 
   function startCountdown(){
-    state = 'countdown';
+    gameState = 'countdown';
     startScreen.classList.add('hidden');
     let count = 3;
     countdownEl.textContent = count;
@@ -260,9 +272,9 @@
     lives = LIVES;
     streak = 0;
     bestStreak = Math.max(bestStreak || 0, best());
-    state = 'playing';
+    gameState = 'playing';
     overScreen.classList.add('hidden');
-    resetBall(true);
+    launchBall(false);
     updateHud();
     lastT = performance.now();
     if(!animId) animId = requestAnimationFrame(frame);
@@ -284,35 +296,33 @@
   }
 
   function endGame(){
-    state = 'over';
+    gameState = 'over';
     saveBest(streak);
     const won = streak >= 10;
-    overEmoji.textContent = won ? '🏆' : lives <= 0 ? '😵' : '🏐';
+    overEmoji.textContent = won ? '🏆' : '😵';
     overTitle.textContent = won ? 'MVP!' : 'Game Over';
     overMsg.textContent = won
-      ? 'Incredible streak! You\'re the neon queen!'
-      : lives <= 0 ? 'You ran out of lives.' : '';
+      ? 'Incredible streak! You are the neon queen!'
+      : 'You ran out of lives.';
     finalScoreEl.textContent = score;
     bestStreakEl.textContent = streak;
     overScreen.classList.remove('hidden');
   }
 
   function scorePoint(){
-    score += 10 + streak * 5;
+    const base = 10;
+    const powerBonus = Math.floor(hitPower / 30) * 3;
+    score += base + powerBonus + streak * 3;
     streak++;
     if(streak % 5 === 0){
       showComboPop(netX, netTop + 30, streak + 'x COMBO! 🔥');
     }
-    blip(880, .12, 'square');
-    setTimeout(()=> blip(1100, .15, 'square'), 80);
+    blip(880, .1, 'square');
+    setTimeout(()=> blip(1100, .1, 'square'), 80);
+    setTimeout(()=> blip(1320, .12, 'square'), 160);
     updateHud();
-    // AI serves ball from opponent side toward player
-    ball.x = netX + netX * 0.25;
-    ball.y = courtY - 30;
-    ball.vx = -100;
-    ball.vy = -SET_POWER;
-    ball.phase = 'set';
-    flash = 1;
+    // AI serves ball back to player's side (lob up, player taps to spike)
+    setTimeout(()=> launchBall(true), 400);
   }
 
   function playerMissed(){
@@ -323,11 +333,13 @@
     if(lives <= 0){
       endGame();
     } else {
-      resetBall(true);
+      launchBall(false);
     }
   }
 
   function update(dt){
+    lastX = ball.x;
+
     // ball physics
     ball.vy += GRAVITY * dt;
     ball.x += ball.vx * dt;
@@ -343,7 +355,7 @@
       ball.vx = -Math.abs(ball.vx) * 0.4;
     }
 
-    // net collision
+    // net collision — deflect
     if(ball.x > netX - 4 - BALL_R && ball.x < netX + 4 + BALL_R
        && ball.y > netTop && ball.y < courtY){
       if(ball.vx > 0){
@@ -355,46 +367,29 @@
       blip(110, .2, 'square');
     }
 
+    // ---- scoring: ball crossed the net ----
+    if(ball.vx > 0 && lastX < netX && ball.x >= netX){
+      // Ball crossed the net going right → player scored!
+      if(ball.phase === 'hit'){
+        scorePoint();
+        ball.phase = 'scored';
+      }
+    }
+
     // ---- state machine ----
 
-    // PHASE SET: ball going up → switch to fall at peak
-    if(ball.phase === 'set' || ball.phase === 'serve'){
-      if(ball.vy >= 0){
-        ball.phase = 'fall';
-        blip(400, .08, 'sine');
-      }
+    // Track peak
+    if(ball.phase === 'rising' && ball.vy >= 0){
+      ball.phase = 'falling';
+      blip(400, .06, 'sine');
     }
 
-    // PHASE FALL: ball on player's side — player can spike
-    if(ball.phase === 'fall' && ball.x < netX){
-      if(ball.y < SPIKE_MIN_H){
-        // Spike available — wait for player tap
-      }
-    }
-
-    // PHASE SPIKE: ball flying toward opponent side
-    if(ball.phase === 'spike'){
-      // Ball crossed the net — SCORE!
-      if(ball.x > netX + BALL_R){
-        ball.phase = 'scored';
-        scorePoint();
-        return;
-      }
-      // Ball hit net and bounced back — player missed
-      if(ball.vx < 0 && ball.x < netX){
-        ball.vy = 0;
-        ball.vx = 0;
-        playerMissed();
-        return;
-      }
-    }
-
-    // Ground check — ball landed
+    // Ball hit ground — only if ball is on player's side (miss)
     if(ball.y >= courtY - BALL_R){
       ball.y = courtY - BALL_R;
       ball.vy = 0;
       ball.vx = 0;
-      if(ball.phase === 'fall' || ball.phase === 'spike'){
+      if(ball.phase === 'falling' && ball.x < netX){
         playerMissed();
       }
       return;
@@ -470,29 +465,21 @@
     ctx.restore();
 
     // phase hints
-    if(state === 'playing' && ball){
-      if(ball.phase === 'set' || ball.phase === 'serve'){
+    if(gameState === 'playing' && ball){
+      if(ball.phase === 'rising'){
         ctx.save();
-        ctx.fillStyle = 'rgba(255,255,255,.3)';
-        ctx.font = '13px Poppins, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,.4)';
+        ctx.font = '16px Poppins, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('⬆ Rising...', ball.x, courtY - 15);
+        ctx.fillText('👆 TAP TO HIT!', ball.x, courtY - 50);
         ctx.restore();
       }
-      if(ball.phase === 'fall' && ball.x < netX && ball.y < SPIKE_MIN_H){
+      if(ball.phase === 'falling'){
         ctx.save();
-        ctx.fillStyle = 'rgba(255,210,63,.55)';
+        ctx.fillStyle = 'rgba(255,210,63,.6)';
         ctx.font = 'bold 14px Audiowide, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('⚡ TAP TO SPIKE! ⚡', ball.x, netTop - 10);
-        ctx.restore();
-      }
-      if(ball.phase === 'spike'){
-        ctx.save();
-        ctx.fillStyle = 'rgba(11,211,255,.35)';
-        ctx.font = '13px Poppins, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🏐 Over!', netX + 60, netTop + 30);
+        ctx.fillText('👆 TAP NOW!', ball.x, netTop - 15);
         ctx.restore();
       }
     }
@@ -501,25 +488,36 @@
   function frame(t){
     const dt = Math.min(48, t - lastT) / 1000;
     lastT = t;
-    if(state === 'playing') update(dt);
-    if(state === 'playing' || state === 'countdown') draw();
-    else if(state === 'idle') draw();
+    if(gameState === 'playing') update(dt);
+    if(gameState === 'playing' || gameState === 'countdown') draw();
+    else if(gameState === 'idle') draw();
     animId = requestAnimationFrame(frame);
   }
 
   // ---- input ----
   function onTap(e){
     if(e) e.preventDefault();
-    if(state !== 'playing') return;
+    if(gameState !== 'playing') return;
     if(!ball) return;
 
-    // Only allow spike when ball is falling on player side and high enough
-    if(ball.phase === 'fall' && ball.x < netX && ball.y < SPIKE_MIN_H){
-      // SPIKE — send ball over the net
-      ball.vx = SPIKE_SPEED;
-      ball.vy = SPIKE_VY;
-      ball.phase = 'spike';
+    // Hit ball when it's on your side (left of net)
+    if(ball.x < netX && (ball.phase === 'rising' || ball.phase === 'falling')){
+      // Calculate spike power
+      let power;
+      if(ball.vy < 0){
+        // Ball going up
+        power = MAX_POWER - Math.abs(ball.vy) * 0.3;
+      } else {
+        // Ball falling
+        power = Math.max(MIN_POWER, MAX_POWER - ball.vy * 0.5);
+      }
+
+      hitPower = power;
+      ball.vx = power;
+      ball.vy = -200;
+      ball.phase = 'hit';
       flash = 1;
+
       blip(200, .15, 'sawtooth');
       stage.style.boxShadow = '0 0 50px #ff2bce, inset 0 0 60px rgba(0,0,0,.4)';
       setTimeout(()=>{ stage.style.boxShadow = '0 0 28px rgba(11,211,255,.4), inset 0 0 40px rgba(0,0,0,.35)'; }, 120);
