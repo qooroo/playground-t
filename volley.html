@@ -139,7 +139,7 @@
   const GRAVITY       = 600;
   const NET_H_RATIO   = 0.175;
   const BALL_R        = 14;
-  const MIN_POWER     = 180;   // minimum forward speed
+  const MIN_POWER     = 240;   // minimum forward speed (must clear net)
   const MAX_POWER     = 260;   // maximum forward speed
   const AI_RETURN_VY  = 380;
   const AI_SERVE_X    = -100;
@@ -506,10 +506,10 @@
       let power;
       if(ball.vy < 0){
         // Ball going up
-        power = MAX_POWER - Math.abs(ball.vy) * 0.3;
+        power = Math.max(MIN_POWER, MAX_POWER - Math.abs(ball.vy) * 0.2);
       } else {
         // Ball falling
-        power = Math.max(MIN_POWER, MAX_POWER - ball.vy * 0.5);
+        power = Math.max(MIN_POWER, Math.min(MAX_POWER, MAX_POWER - ball.vy * 0.1));
       }
 
       hitPower = power;
