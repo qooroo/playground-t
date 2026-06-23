@@ -137,7 +137,7 @@
 (() => {
   // ---- config ----
   const GRAVITY       = 600;
-  const NET_H_RATIO   = 0.35;
+  const NET_H_RATIO   = 0.175;
   const BALL_R        = 14;
   const MIN_POWER     = 180;   // minimum forward speed
   const MAX_POWER     = 260;   // maximum forward speed
@@ -500,8 +500,8 @@
     if(gameState !== 'playing') return;
     if(!ball) return;
 
-    // Hit ball when it's on your side (left of net)
-    if(ball.x < netX && (ball.phase === 'rising' || ball.phase === 'falling')){
+    // Hit ball when it's on your side and high enough (not too low)
+    if(ball.x < netX && ball.y < courtY - 100 && (ball.phase === 'rising' || ball.phase === 'falling')){
       // Calculate spike power
       let power;
       if(ball.vy < 0){
