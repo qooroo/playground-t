@@ -109,6 +109,7 @@
   </div>
 
   <div class="stage" id="stage">
+    <canvas id="gameCanvas"></canvas>
     <div class="countdown hidden" id="countdownEl"></div>
     <div class="overlay hidden" id="startScreen">
       <span class="big">🏐</span>
@@ -146,7 +147,8 @@
   const LIVES           = 3;
 
   const stage  = document.getElementById('stage');
-  const ctx    = stage.getContext('2d');
+  const canvas = document.getElementById('gameCanvas');
+  const ctx    = canvas.getContext('2d');
   const scoreEl = document.getElementById('scoreEl');
   const streakEl = document.getElementById('streakEl');
   const startScreen = document.getElementById('startScreen');
@@ -165,10 +167,14 @@
 
   function resize(){
     const rect = stage.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
     W = Math.floor(rect.width);
     H = Math.floor(rect.height);
     stage.style.width  = W + 'px';
     stage.style.height = H + 'px';
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     courtY = H - 20;
     ctx.imageSmoothingEnabled = false;
   }
