@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏐 Neon Volley — Adie's Arcade</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Audiowide&family=Poppins:wght@500;700&display=swap');
+
+  :root {
+    --pool:#0bd3ff; --magenta:#ff2bce; --lime:#aaff00; --sun:#ffd23f;
+    --violet:#8a2bff; --deep:#03102e;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    font-family:'Poppins', system-ui, sans-serif; color:#fff;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,43,206,.30), transparent 45%),
+      radial-gradient(circle at 80% 25%, rgba(11,211,255,.30), transparent 45%),
+      linear-gradient(135deg,#0a1f5c,#05163f 60%,#03102e);
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100vh; overflow:hidden; touch-action:none;
+    user-select:none; -webkit-user-select:none;
+  }
+
+  .topbar {
+    width:100%; max-width:560px; display:flex; align-items:center;
+    justify-content:space-between; padding:.7rem 1rem .3rem; gap:.5rem;
+  }
+  .topbar a { color:var(--pool); text-decoration:none; font-weight:700; font-size:.95rem; text-shadow:0 0 8px var(--pool); white-space:nowrap; }
+  .topbar a:hover { color:var(--lime); text-shadow:0 0 8px var(--lime); }
+  h1 {
+    font-family:'Audiowide', sans-serif; font-size:clamp(1.1rem,4.4vw,1.8rem);
+    background:linear-gradient(90deg,var(--pool),var(--magenta),var(--lime));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 10px rgba(11,211,255,.6)); white-space:nowrap;
+  }
+  .mute { background:none; border:none; cursor:pointer; font-size:1.4rem; }
+  .mute.off { opacity:.45; }
+
+  .hud {
+    width:100%; max-width:560px; display:flex; justify-content:space-between;
+    align-items:center; gap:.8rem; padding:.2rem 1rem .4rem; font-weight:700; font-size:1rem;
+  }
+  .score { color:var(--sun); text-shadow:0 0 8px var(--sun); white-space:nowrap; font-family:'Audiowide',sans-serif; font-size:.95rem; }
+  .streak { color:var(--magenta); text-shadow:0 0 8px var(--magenta); white-space:nowrap; font-family:'Audiowide',sans-serif; font-size:.95rem; }
+
+  .stage {
+    position:relative; width:100%; max-width:560px; flex:1;
+    margin:0 .5rem; border:4px solid var(--pool); border-radius:18px;
+    box-shadow:0 0 28px rgba(11,211,255,.4), inset 0 0 40px rgba(0,0,0,.35);
+    overflow:hidden; background:linear-gradient(180deg,rgba(11,211,255,.08),rgba(0,0,0,.25));
+  }
+  canvas { display:block; width:100%; height:100%; }
+
+  .countdown {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:'Audiowide',sans-serif; font-size:clamp(3rem,16vw,6rem);
+    color:#fff; text-shadow:0 0 24px var(--magenta); pointer-events:none; z-index:4;
+  }
+  .countdown.hidden { display:none; }
+
+  .overlay {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; gap:1rem;
+    background:rgba(3,16,46,.85); backdrop-filter:blur(4px); padding:1.5rem; z-index:5;
+  }
+  .overlay.hidden { display:none; }
+  .overlay h2 { font-family:'Audiowide',sans-serif; font-size:clamp(1.6rem,7vw,2.6rem);
+    background:linear-gradient(90deg,var(--pool),var(--lime),var(--magenta));
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .overlay p { max-width:92%; line-height:1.45; font-size:1.05rem; }
+  .overlay .big { font-size:3rem; line-height:1; }
+  .btn {
+    font-family:'Audiowide',sans-serif; text-transform:uppercase; cursor:pointer;
+    border:3px solid #fff; border-radius:50px; padding:.8rem 2rem; font-size:1.05rem;
+    color:var(--deep); background:var(--pool); box-shadow:0 0 22px var(--pool);
+    transition:transform .12s, box-shadow .25s;
+  }
+  .btn:hover { transform:scale(1.06); box-shadow:0 0 34px var(--magenta); }
+  .hint { opacity:.8; font-size:.95rem; }
+
+  .combo-pop {
+    position:absolute; font-family:'Audiowide',sans-serif; font-size:1.5rem;
+    color:var(--sun); text-shadow:0 0 12px var(--sun); pointer-events:none;
+    z-index:3; animation: comboAnim .7s ease-out forwards;
+  }
+  @keyframes comboAnim {
+    0%   { transform: scale(.5); opacity:1; }
+    50%  { transform: scale(1.4); opacity:1; }
+    100% { transform: scale(1) translateY(-60px); opacity:0; }
+  }
+
+  footer { padding:.5rem; font-size:.8rem; opacity:.6; }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <a href="adie-arcade.html">◄ Adie's Arcade</a>
+    <h1>🏐 NEON VOLLEY</h1>
+    <button class="mute" id="muteBtn" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+  </div>
+
+  <div class="hud">
+    <div class="score" id="scoreEl">Score: 0</div>
+    <div class="streak" id="streakEl">Streak: 0</div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="countdown hidden" id="countdownEl"></div>
+    <div class="overlay hidden" id="startScreen">
+      <span class="big">🏐</span>
+      <h2>NEON VOLLEY</h2>
+      <p>Tap to <b>set</b> the ball up, then tap again to <b>spike</b> it across!</p>
+      <p class="hint">Time your spikes to score. Build combos for bonus points!</p>
+      <button class="btn" id="startBtn">Play</button>
+    </div>
+    <div class="overlay hidden" id="overScreen">
+      <span class="big" id="overEmoji">🏐</span>
+      <h2 id="overTitle">Game Over</h2>
+      <p id="overMsg">Better luck next time!</p>
+      <p>Score: <span id="finalScoreEl" class="big">0</span></p>
+      <p>Best streak: <span id="bestStreakEl">0</span></p>
+      <button class="btn" id="againBtn">Play Again</button>
+    </div>
+  </div>
+
+  <footer>Adie's Arcade · Neon Volley</footer>
+
+<script>
+(() => {
+  // ---- config ----
+  const BALL_RADIUS     = 16;
+  const NET_H           = 180;       // net top from bottom
+  const NET_Y           = NET_H;     // net top Y coordinate
+  const GRAVITY         = 980;
+  const SET_POWER_Y     = 420;       // upward velocity on set
+  const SPIKE_POWER_Y   = 560;       // downward velocity on spike
+  const SPIKE_POWER_X   = 320;       // forward horizontal speed on spike
+  const OPPONENT_DELAY  = 0.55;      // opponent reaction delay (seconds)
+  const OPPONENT_POWER_Y= 380;       // opponent set power
+  const OPPONENT_POWER_X= 280;       // opponent return power
+  const MAX_HIT_TIME    = 3.0;       // seconds before ball falls if not hit
+  const LIVES           = 3;
+
+  const stage  = document.getElementById('stage');
+  const ctx    = stage.getContext('2d');
+  const scoreEl = document.getElementById('scoreEl');
+  const streakEl = document.getElementById('streakEl');
+  const startScreen = document.getElementById('startScreen');
+  const overScreen  = document.getElementById('overScreen');
+  const countdownEl = document.getElementById('countdownEl');
+  const startBtn    = document.getElementById('startBtn');
+  const againBtn    = document.getElementById('againBtn');
+  const muteBtn     = document.getElementById('muteBtn');
+  const finalScoreEl = document.getElementById('finalScoreEl');
+  const bestStreakEl = document.getElementById('bestStreakEl');
+  const overEmoji   = document.getElementById('overEmoji');
+  const overTitle   = document.getElementById('overTitle');
+  const overMsg     = document.getElementById('overMsg');
+
+  let W, H, courtY;  // court bottom Y
+
+  function resize(){
+    const rect = stage.getBoundingClientRect();
+    W = Math.floor(rect.width);
+    H = Math.floor(rect.height);
+    stage.style.width  = W + 'px';
+    stage.style.height = H + 'px';
+    courtY = H - 20;
+    ctx.imageSmoothingEnabled = false;
+  }
+
+  // ---- audio ----
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let actx;
+  function ensureAudio(){ if(!actx) actx = new AC(); }
+  let muted = false;
+  function blip(freq, dur, type='sine', vol=.18){
+    if(muted||!actx) return;
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + dur);
+    o.connect(g).connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  }
+
+  muteBtn.addEventListener('click', ()=>{
+    muted = !muted;
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    muteBtn.classList.toggle('off', muted);
+  });
+
+  // ---- game state ----
+  let state = 'idle'; // idle | countdown | playing | over
+  let ball, playerSide, opponentSide;
+  let score, lives, streak, bestStreak;
+  let hitPhase; // none | ready_to_spike | none
+  let hitTimer = 0;
+  let lastT = 0;
+  let animId;
+  let comboPopTimer = 0;
+
+  function best(){
+    try { return parseInt(localStorage.getItem('volley_best')||'0', 10); }
+    catch(e){ return 0; }
+  }
+  function saveBest(v){
+    try { localStorage.setItem('volley_best', String(v)); } catch(e){}
+  }
+
+  function resetBall(side){
+    const netX = W * 0.5;
+    const fromPlayer = side === 'player';
+    ball = {
+      x: fromPlayer ? W * 0.25 : W * 0.75,
+      y: courtY - 60,
+      vx: 0,
+      vy: 0,
+      side: side,
+      age: 0
+    };
+    hitPhase = 'none';
+    hitTimer = 0;
+  }
+
+  function startCountdown(){
+    state = 'countdown';
+    startScreen.classList.add('hidden');
+    let count = 3;
+    countdownEl.textContent = count;
+    countdownEl.classList.remove('hidden');
+    blip(440,.12,'square');
+    const iv = setInterval(()=>{
+      count--;
+      if(count > 0){
+        countdownEl.textContent = count;
+        blip(440,.12,'square');
+      } else {
+        countdownEl.textContent = 'GO!';
+        blip(660,.2,'square');
+        clearInterval(iv);
+        setTimeout(()=>{
+          countdownEl.classList.add('hidden');
+          startGame();
+        }, 350);
+      }
+    }, 600);
+  }
+
+  function startGame(){
+    ensureAudio();
+    score = 0;
+    lives = LIVES;
+    streak = 0;
+    bestStreak = Math.max(bestStreak || 0, best());
+    state = 'playing';
+    overScreen.classList.add('hidden');
+    resetBall('player');
+    updateHud();
+    lastT = performance.now();
+    if(!animId) animId = requestAnimationFrame(frame);
+  }
+
+  function updateHud(){
+    scoreEl.textContent = 'Score: ' + score;
+    streakEl.textContent = 'Streak: ' + streak + (streak >= 3 ? ' 🔥' : '');
+  }
+
+  function showComboPop(x, y, text){
+    const el = document.createElement('div');
+    el.className = 'combo-pop';
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    stage.appendChild(el);
+    setTimeout(()=> el.remove(), 700);
+  }
+
+  // ---- opponent AI ----
+  function opponentThink(){
+    if(ball.side !== 'opponent') return;
+    hitTimer += 1/60;
+    if(hitTimer >= OPPONENT_DELAY){
+      hitTimer = 0;
+      // opponent returns the ball to player side
+      const netX = W * 0.5;
+      ball.x = netX + 30 + Math.random() * 40;
+      ball.y = courtY - 70;
+      ball.vx = -SPIKE_POWER_X * (0.8 + Math.random() * 0.4);
+      ball.vy = -OPPONENT_POWER_Y * (0.85 + Math.random() * 0.3);
+      ball.side = 'player';
+      blip(330, .15, 'triangle');
+    }
+  }
+
+  // ---- update ----
+  function update(dt){
+    hitTimer += dt;
+
+    // ball physics
+    ball.vy += GRAVITY * dt;
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+    ball.age += dt;
+
+    // ground check (ball dropped)
+    if(ball.y >= courtY - BALL_RADIUS){
+      ball.y = courtY - BALL_RADIUS;
+      // ball landed
+      if(ball.side === 'player'){
+        // player side — opponent scored
+        lives--;
+        streak = 0;
+        updateHud();
+        blip(150, .3, 'sawtooth');
+        if(lives <= 0){
+          endGame();
+          return;
+        }
+        resetBall('opponent');
+        hitTimer = 0;
+        return;
+      } else {
+        // opponent side — player scored!
+        score += 10 + streak * 5;
+        streak++;
+        if(streak % 5 === 0){
+          showComboPop(W/2, H/2 - 30, streak + 'x COMBO! 🔥');
+        }
+        blip(880, .12, 'square');
+        setTimeout(()=> blip(1100, .15, 'square'), 80);
+        updateHud();
+        resetBall('opponent');
+        hitTimer = 0;
+        return;
+      }
+    }
+
+    // wall bounces
+    if(ball.x < BALL_RADIUS){
+      ball.x = BALL_RADIUS;
+      ball.vx = Math.abs(ball.vx) * 0.7;
+      blip(220, .08, 'sine');
+    }
+    if(ball.x > W - BALL_RADIUS){
+      ball.x = W - BALL_RADIUS;
+      ball.vx = -Math.abs(ball.vx) * 0.7;
+      blip(220, .08, 'sine');
+    }
+
+    // net collision
+    const netX = W * 0.5;
+    if(ball.x > netX - BALL_RADIUS - 4 && ball.x < netX + BALL_RADIUS + 4){
+      if(ball.y < courtY - NET_H + BALL_RADIUS){
+        // ball hits the net
+        ball.y = (ball.y < courtY - NET_H/2) ? courtY - NET_H - BALL_RADIUS : courtY - NET_H/2 + BALL_RADIUS;
+        ball.vx *= -0.3;
+        blip(110, .2, 'square');
+        // if ball is stuck, it falls — side determined by position
+        if(ball.age > MAX_HIT_TIME){
+          ball.side = ball.x < netX ? 'player' : 'opponent';
+        }
+      }
+    }
+
+    // age penalty — if ball isn't hit in time, determine side by position
+    if(ball.age > MAX_HIT_TIME && hitPhase !== 'ready_to_spike'){
+      // ball falls — side by current position
+      if(ball.x < W * 0.5){
+        // player's court
+        ball.side = 'player';
+        lives--;
+        streak = 0;
+        updateHud();
+        blip(150, .3, 'sawtooth');
+        if(lives <= 0){ endGame(); return; }
+        resetBall('opponent');
+        hitTimer = 0;
+        return;
+      } else {
+        // opponent's court
+        ball.side = 'opponent';
+        score += 10 + streak * 5;
+        streak++;
+        updateHud();
+        blip(880, .12, 'square');
+        resetBall('opponent');
+        hitTimer = 0;
+        return;
+      }
+    }
+
+    // opponent AI
+    if(ball.side === 'opponent' && hitTimer < OPPONENT_DELAY){
+      opponentThink();
+    }
+
+    // player set: ball on player side, low enough
+    if(hitPhase === 'ready_to_spike'){
+      hitTimer += dt;
+      if(hitTimer > 0.8){
+        hitPhase = 'none';
+      }
+    }
+
+    updateHud();
+  }
+
+  function endGame(){
+    state = 'over';
+    saveBest(streak);
+    const won = streak >= 10;
+    overEmoji.textContent = won ? '🏆' : lives <= 0 ? '😵' : '🏐';
+    overTitle.textContent = won ? 'MVP!' : 'Game Over';
+    overMsg.textContent = won
+      ? 'Incredible streak! You\'re the neon queen!'
+      : lives <= 0 ? 'You ran out of lives.' : '';
+    finalScoreEl.textContent = score;
+    bestStreakEl.textContent = streak;
+    overScreen.classList.remove('hidden');
+  }
+
+  // ---- draw ----
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+
+    // court lines
+    ctx.save();
+    const netX = W * 0.5;
+
+    // court floor
+    ctx.fillStyle = 'rgba(11,211,255,.08)';
+    ctx.fillRect(0, courtY - 4, W, 4);
+
+    // net
+    const netTop = courtY - NET_H;
+    ctx.strokeStyle = 'rgba(255,43,206,.8)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#ff2bce';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.moveTo(netX, netTop);
+    ctx.lineTo(netX, courtY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // net top bar
+    ctx.fillStyle = '#ff2bce';
+    ctx.shadowColor = '#ff2bce';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(netX - 3, netTop - 3, 6, 8);
+    ctx.shadowBlur = 0;
+
+    // court divider (dashed)
+    ctx.setLineDash([8,8]);
+    ctx.strokeStyle = 'rgba(255,255,255,.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(netX, courtY);
+    ctx.lineTo(netX, courtY - 20);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.restore();
+
+    // draw ball
+    if(ball){
+      ctx.save();
+      const bx = ball.x, by = ball.y;
+      // ball glow
+      const glowSize = 20 + Math.min(streak * 2, 16);
+      ctx.shadowColor = streak >= 5 ? '#ff2bce' : streak >= 3 ? '#ffd23f' : '#0bd3ff';
+      ctx.shadowBlur = glowSize;
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏐', bx, by);
+      ctx.restore();
+    }
+
+    // player zone indicator
+    ctx.save();
+    ctx.fillStyle = 'rgba(11,211,255,.04)';
+    ctx.fillRect(0, 0, netX - 4, courtY);
+    ctx.fillStyle = 'rgba(255,43,206,.04)';
+    ctx.fillRect(netX + 4, 0, W - netX - 4, courtY);
+    ctx.restore();
+
+    // lives display
+    ctx.save();
+    ctx.font = '16px serif';
+    ctx.textAlign = 'right';
+    for(let i = 0; i < LIVES; i++){
+      ctx.globalAlpha = i < lives ? 1 : .2;
+      ctx.fillText('🏐', W - 12 - (LIVES - 1 - i) * 22, 24);
+    }
+    ctx.restore();
+
+    // player set indicator
+    if(hitPhase === 'ready_to_spike'){
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,210,63,.5)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4,4]);
+      ctx.strokeRect(netX - 6, netTop + 10, netX - 12, courtY - netTop - 10);
+      ctx.restore();
+    }
+  }
+
+  function frame(t){
+    const dt = Math.min(48, t - lastT) / 1000;
+    lastT = t;
+    if(state === 'playing') update(dt);
+    if(state === 'playing' || state === 'countdown') draw();
+    else if(state === 'idle') draw();
+    animId = requestAnimationFrame(frame);
+  }
+
+  // ---- input ----
+  function onTap(e){
+    if(e) e.preventDefault();
+    if(state !== 'playing') return;
+    if(hitPhase === 'none' && ball && ball.side === 'player'){
+      // SET — push ball up
+      const canSet = ball.y > courtY - NET_H - 20 && ball.age < MAX_HIT_TIME * 0.8;
+      if(canSet){
+        ball.vy = -SET_POWER_Y;
+        ball.vx = 40 + Math.random() * 20; // slight drift toward net
+        ball.age = 0;
+        hitPhase = 'ready_to_spike';
+        hitTimer = 0;
+        blip(550, .1, 'sine');
+        blip(825, .08, 'sine');
+      }
+    } else if(hitPhase === 'ready_to_spike'){
+      // SPIKE — smash ball down on opponent side
+      const canSpike = ball.y < courtY - 40;
+      if(canSpike){
+        ball.vx = SPIKE_POWER_X;
+        ball.vy = SPIKE_POWER_Y * 0.6; // slight downward angle
+        ball.side = 'opponent';
+        hitPhase = 'none';
+        hitTimer = 0;
+        blip(200, .15, 'sawtooth');
+        // screen shake effect via glow flash
+        stage.style.boxShadow = '0 0 50px #ff2bce, inset 0 0 60px rgba(0,0,0,.4)';
+        setTimeout(()=>{ stage.style.boxShadow = '0 0 28px rgba(11,211,255,.4), inset 0 0 40px rgba(0,0,0,.35)'; }, 120);
+      }
+    }
+  }
+
+  stage.addEventListener('pointerdown', onTap);
+
+  startBtn.addEventListener('click', startCountdown);
+  againBtn.addEventListener('click', startCountdown);
+
+  // ---- init ----
+  resize();
+  bestStreak = best();
+  lastT = performance.now();
+  startScreen.classList.remove('hidden');
+  draw(); // initial draw
+  animId = requestAnimationFrame(frame);
+
+  window.addEventListener('resize', resize);
+})();
+</script>
+</body>
+</html>
