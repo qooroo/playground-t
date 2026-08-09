@@ -110,8 +110,12 @@
     position:relative;
     width:calc(100% - 1rem);
     max-width:560px;
-    aspect-ratio:1 / 1;
-    margin:0 .5rem;
+    flex:1 1 auto;
+    min-height:0;              /* allow the flex item to size to available space */
+    margin:.25rem .5rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;    /* centre the square board inside whatever box we get */
     border:4px solid rgba(255,255,255,.95);
     border-radius:22px;
     overflow:hidden;
@@ -130,12 +134,12 @@
     80% { transform:translate(5px,-2px); }
   }
 
+  /* The board is an explicitly-sized square set in JS so it never distorts,
+     no matter what shape the stage box ends up. Flex centres it. */
   canvas {
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
     display:block;
+    border-radius:14px;
+    touch-action:none;
   }
 
   .overlay {
@@ -220,6 +224,12 @@
   .dpad .right { grid-column:3; grid-row:2; }
   .dpad .down  { grid-column:2; grid-row:3; }
   .dpad .spacer { visibility:hidden; }
+
+  /* On a mouse-primary device the keyboard drives the game, so the touch
+     D-pad just steals vertical space — hide it and let the board grow. */
+  @media (hover:hover) and (pointer:fine) {
+    .dpad { display:none; }
+  }
 
   footer {
     padding:.5rem 1rem .55rem;
@@ -380,10 +390,15 @@
 
   /* ---------- Canvas sizing (crisp on retina) ---------- */
   function resize() {
-    const rect = stage.getBoundingClientRect();
-    const size = Math.min(rect.width, rect.height);
+    // clientWidth/Height are the stage's inner area (border excluded). Take the
+    // smaller side so the board is always a square that fits, then size the
+    // canvas explicitly in BOTH css px and buffer px so it never stretches.
+    const inner = Math.min(stage.clientWidth, stage.clientHeight);
+    const size = Math.floor(inner) - 6; // a little breathing room off the frame
     if (size <= 0) return;
     dpr = window.devicePixelRatio || 1;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
     canvas.width = Math.round(size * dpr);
     canvas.height = Math.round(size * dpr);
     cell = canvas.width / GRID;
