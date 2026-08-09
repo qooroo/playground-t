@@ -212,6 +212,37 @@
   }
   .hi { color:var(--grape); font-weight:800; }
 
+  /* Wall-mode segmented toggle — configured before a game starts. */
+  .mode {
+    display:inline-flex;
+    gap:.3rem;
+    padding:.3rem;
+    border-radius:999px;
+    background:rgba(255,255,255,.6);
+    border:2px solid rgba(255,255,255,.9);
+    box-shadow:0 6px 16px rgba(116,84,189,.14);
+  }
+  .modeBtn {
+    font-family:'Baloo 2', cursive;
+    font-weight:800;
+    font-size:.92rem;
+    cursor:pointer;
+    border:none;
+    border-radius:999px;
+    padding:.5rem 1rem;
+    color:var(--grape);
+    background:transparent;
+    transition:background .15s, color .15s, transform .1s;
+    -webkit-tap-highlight-color:transparent;
+    white-space:nowrap;
+  }
+  .modeBtn:hover { transform:translateY(-1px); }
+  .modeBtn.active {
+    color:#fff;
+    background:var(--grape);
+    box-shadow:0 4px 12px rgba(116,84,189,.3);
+  }
+
   /* On-screen D-pad for touch play */
   .dpad {
     display:grid;
@@ -290,7 +321,12 @@
     <div class="overlay" id="startScreen">
       <div class="big">🐍🍓✨</div>
       <h2>Snake</h2>
-      <p>Guide the snake to gobble the fruit and grow as long as you can. The walls are cosy portals — glide off one edge and you'll pop out the other! Just don't nibble your own tail.</p>
+      <p>Gobble the fruit and grow as long as you can — just don't nibble your own tail!</p>
+      <div class="mode" role="group" aria-label="Wall mode">
+        <button type="button" class="modeBtn" data-wrap="1">🌀 Wrap-around</button>
+        <button type="button" class="modeBtn" data-wrap="0">🧱 Solid walls</button>
+      </div>
+      <p class="hint" id="modeDesc"></p>
       <div class="legend">
         <span>⌨️ Arrows / WASD</span>
         <span>📱 Swipe or tap the pad</span>
@@ -304,6 +340,10 @@
       <h2 id="overTitle">Oops!</h2>
       <p id="overMsg"></p>
       <p>Score: <b id="finalScore">0</b><br><span class="hi">Best: <span id="finalBest">0</span></span></p>
+      <div class="mode" role="group" aria-label="Wall mode">
+        <button type="button" class="modeBtn" data-wrap="1">🌀 Wrap-around</button>
+        <button type="button" class="modeBtn" data-wrap="0">🧱 Solid walls</button>
+      </div>
       <button class="btn" id="againBtn" type="button">↻ Play Again</button>
     </div>
   </div>
@@ -316,7 +356,7 @@
     <button class="down" type="button" data-dir="down" aria-label="Down">▼</button>
   </div>
 
-  <footer>Bea's Arcade · The walls wrap around 🌀</footer>
+  <footer id="footNote">Bea's Arcade · The walls wrap around 🌀</footer>
 
 <script>
 (function () {
@@ -339,6 +379,9 @@
   const finalScoreEl = document.getElementById('finalScore');
   const finalBestEl = document.getElementById('finalBest');
   const dpad = document.getElementById('dpad');
+  const footNote = document.getElementById('footNote');
+  const modeDesc = document.getElementById('modeDesc');
+  const modeBtns = document.querySelectorAll('.modeBtn');
 
   const GRID = 17;              // logical cells per side
   const START_LEN = 3;
@@ -356,6 +399,7 @@
     { body: '#ffcf3f', leaf: '#6fcf97' }, // golden
   ];
   const bestKey = 'beaSnakeBest';
+  const wrapKey = 'beaSnakeWrap';
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -363,6 +407,7 @@
   let state = 'idle';          // idle | running | over
   let muted = false;
   let actx = null;
+  let wrapWalls = true;        // wrap-around walls on/off (set before a game starts)
 
   let snake = [];              // array of {x,y}, head first
   let dir = { x: 1, y: 0 };    // current heading
@@ -382,6 +427,24 @@
   }
   function saveBest(v) {
     try { localStorage.setItem(bestKey, String(v)); } catch (e) {}
+  }
+
+  /* ---------- Wall-mode preference ---------- */
+  function getWrap() {
+    try { const v = localStorage.getItem(wrapKey); return v === null ? true : v === '1'; }
+    catch (e) { return true; }
+  }
+  function setWrap(v) {
+    wrapWalls = !!v;
+    try { localStorage.setItem(wrapKey, wrapWalls ? '1' : '0'); } catch (e) {}
+    modeBtns.forEach(b => b.classList.toggle('active', (b.dataset.wrap === '1') === wrapWalls));
+    if (modeDesc) modeDesc.textContent = wrapWalls
+      ? 'Glide off any edge and pop out the opposite side.'
+      : "Touch any wall and it's game over — classic mode.";
+    if (footNote) footNote.textContent = wrapWalls
+      ? "Bea's Arcade · The walls wrap around 🌀"
+      : "Bea's Arcade · Solid walls — mind the edges 🧱";
+    draw(); // reflect the border style on the idle board
   }
 
   /* ---------- Audio (Web Audio, no asset files) ---------- */
@@ -490,11 +553,16 @@
 
     if (queuedDirs.length) dir = queuedDirs.shift();
 
-    // Wrap-around walls: leave one edge, appear on the opposite side.
-    const head = {
-      x: (snake[0].x + dir.x + GRID) % GRID,
-      y: (snake[0].y + dir.y + GRID) % GRID,
-    };
+    // Advance the head. Walls either wrap to the opposite side or end the run.
+    let hx = snake[0].x + dir.x;
+    let hy = snake[0].y + dir.y;
+    if (wrapWalls) {
+      hx = (hx + GRID) % GRID;
+      hy = (hy + GRID) % GRID;
+    } else if (hx < 0 || hx >= GRID || hy < 0 || hy >= GRID) {
+      return gameOver('wall');
+    }
+    const head = { x: hx, y: hy };
 
     const eating = (head.x === food.x && head.y === food.y);
 
@@ -503,7 +571,7 @@
     const checkLen = eating ? snake.length : snake.length - 1;
     for (let i = 0; i < checkLen; i++) {
       if (snake[i].x === head.x && snake[i].y === head.y) {
-        return gameOver();
+        return gameOver('self');
       }
     }
 
@@ -543,6 +611,9 @@
       }
     }
 
+    // Edge treatment shows the current wall mode at a glance.
+    drawWalls();
+
     // Food — a glossy little fruit, drawn with vector shapes.
     if (state !== 'idle') drawFood(food);
 
@@ -561,6 +632,25 @@
 
       if (isHead) drawEyes(seg);
     }
+  }
+
+  function drawWalls() {
+    const w = canvas.width;
+    const lw = Math.max(2, cell * 0.16);
+    ctx.lineWidth = lw;
+    ctx.lineJoin = 'round';
+    if (wrapWalls) {
+      // Soft dashed lavender edge — a hint that the sides are portals.
+      ctx.strokeStyle = 'rgba(122,92,196,0.30)';
+      ctx.setLineDash([cell * 0.5, cell * 0.34]);
+    } else {
+      // Solid coral edge — these walls are deadly.
+      ctx.strokeStyle = '#ff6b8a';
+      ctx.setLineDash([]);
+    }
+    roundRect(lw, lw, w - lw * 2, w - lw * 2, cell * 0.5);
+    ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   function drawFood(f) {
@@ -682,15 +772,17 @@
     sndEnd(beat);
   }
 
-  function gameOver() {
+  function gameOver(cause) {
     shake();
-    finish(
-      'Oops!',
-      score === 0 ? '🌱' : '🐍',
-      score === 0
-        ? 'The snake tied itself in a knot straight away — try again!'
-        : 'You bumped into your own tail. Give it another wiggle!'
-    );
+    if (cause === 'wall') {
+      finish('Oops!', '🧱',
+        'You ran into the wall! Switch to wrap-around for a gentler ride.');
+    } else {
+      finish('Oops!', score === 0 ? '🌱' : '🐍',
+        score === 0
+          ? 'The snake tied itself in a knot straight away — try again!'
+          : 'You bumped into your own tail. Give it another wiggle!');
+    }
   }
 
   function win() {
@@ -725,6 +817,15 @@
     }
   });
 
+  // Wall-mode toggle (only meaningful before a game starts).
+  modeBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (state === 'running') return;
+      setWrap(b.dataset.wrap === '1');
+      beep(560, .05, 'sine', .04);
+    });
+  });
+
   // On-screen D-pad.
   dpad.addEventListener('pointerdown', function (e) {
     const btn = e.target.closest('button[data-dir]');
@@ -754,6 +855,7 @@
 
   // Boot.
   bestEl.textContent = getBest();
+  setWrap(getWrap());
   resize();
   draw();
 })();
