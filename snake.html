@@ -155,8 +155,20 @@
     text-align:center;
     background:rgba(246,236,255,.86);
     backdrop-filter:blur(5px);
+    overflow-y:auto;           /* keep the Start button reachable on short screens */
   }
   .overlay.hidden { display:none; }
+  .hint {
+    font-size:.9rem;
+    font-weight:700;
+    color:var(--grape);
+    opacity:.85;
+  }
+  .hint b {
+    background:rgba(116,84,189,.14);
+    border-radius:6px;
+    padding:.05rem .4rem;
+  }
   .overlay .big { font-size:clamp(3rem, 14vw, 5.2rem); line-height:1; }
   .overlay h2 {
     font-family:'Baloo 2', cursive;
@@ -193,6 +205,11 @@
     transition:transform .12s, box-shadow .2s, background .2s;
   }
   .btn:hover { transform:translateY(-2px) scale(1.04); background:#5f43a4; box-shadow:0 12px 24px rgba(116,84,189,.38); }
+  .btn.pulse { animation:btnpulse 1.4s ease-in-out infinite; }
+  @keyframes btnpulse {
+    0%,100% { transform:scale(1); box-shadow:0 8px 20px rgba(116,84,189,.3); }
+    50% { transform:scale(1.06); box-shadow:0 12px 28px rgba(116,84,189,.45); }
+  }
   .hi { color:var(--grape); font-weight:800; }
 
   /* On-screen D-pad for touch play */
@@ -249,6 +266,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .stage.shake { animation:none !important; }
+    .btn.pulse { animation:none !important; }
   }
 </style>
 </head>
@@ -277,7 +295,8 @@
         <span>⌨️ Arrows / WASD</span>
         <span>📱 Swipe or tap the pad</span>
       </div>
-      <button class="btn" id="startBtn" type="button">▶ Start</button>
+      <button class="btn pulse" id="startBtn" type="button">▶ Start Game</button>
+      <p class="hint">Press <b>Enter</b> or <b>Space</b> — or tap ▶ Start Game</p>
     </div>
 
     <div class="overlay hidden" id="overScreen">
@@ -326,7 +345,16 @@
   const STEP_START = 165;       // ms per move at the start
   const STEP_MIN = 78;          // fastest it gets
   const STEP_RAMP = 4;          // ms shaved off per fruit
-  const FRUITS = ['🍓', '🍏', '🍒', '🫐', '🍑', '🌸'];
+  // Food is drawn as vector art (not emoji) so it renders on every browser,
+  // regardless of whether an emoji font is available to the canvas.
+  const FRUITS = [
+    { body: '#ff6b8a', leaf: '#6fcf97' }, // strawberry
+    { body: '#ff8a5c', leaf: '#6fcf97' }, // peach
+    { body: '#c06bff', leaf: '#8fe3b0' }, // grape
+    { body: '#ff5470', leaf: '#6fcf97' }, // cherry
+    { body: '#5cb8ff', leaf: '#8fe3b0' }, // blueberry
+    { body: '#ffcf3f', leaf: '#6fcf97' }, // golden
+  ];
   const bestKey = 'beaSnakeBest';
 
   const pick = arr => arr[(Math.random() * arr.length) | 0];
@@ -339,7 +367,7 @@
   let snake = [];              // array of {x,y}, head first
   let dir = { x: 1, y: 0 };    // current heading
   let queuedDirs = [];         // buffered turns, applied one per step
-  let food = { x: 0, y: 0, emoji: '🍓' };
+  let food = { x: 0, y: 0, fruit: FRUITS[0] };
   let score = 0;
   let stepMs = STEP_START;
   let stepId = null;
@@ -416,7 +444,7 @@
     }
     if (!open.length) return false; // board full — you win in spirit
     const spot = pick(open);
-    food = { x: spot.x, y: spot.y, emoji: pick(FRUITS) };
+    food = { x: spot.x, y: spot.y, fruit: pick(FRUITS) };
     return true;
   }
 
@@ -515,13 +543,8 @@
       }
     }
 
-    // Food (emoji drawn to the cell centre).
-    if (state !== 'idle') {
-      ctx.font = Math.floor(cell * 0.82) + 'px serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(food.emoji, (food.x + 0.5) * cell, (food.y + 0.52) * cell);
-    }
+    // Food — a glossy little fruit, drawn with vector shapes.
+    if (state !== 'idle') drawFood(food);
 
     // Snake body — rounded segments with a lavender→grape gradient.
     for (let i = snake.length - 1; i >= 0; i--) {
@@ -538,6 +561,43 @@
 
       if (isHead) drawEyes(seg);
     }
+  }
+
+  function drawFood(f) {
+    const cx = (f.x + 0.5) * cell;
+    const cy = (f.y + 0.54) * cell;
+    const r = cell * 0.30;
+
+    // Berry body with a glossy radial gradient.
+    const g = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.15, cx, cy, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.9)');
+    g.addColorStop(0.35, f.fruit.body);
+    g.addColorStop(1, f.fruit.body);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Little leaf on top.
+    ctx.fillStyle = f.fruit.leaf;
+    ctx.beginPath();
+    ctx.ellipse(cx + r * 0.15, cy - r * 1.02, r * 0.36, r * 0.18, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Stem.
+    ctx.strokeStyle = '#8a5a3c';
+    ctx.lineWidth = Math.max(1.2, cell * 0.035);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r * 0.85);
+    ctx.lineTo(cx - r * 0.08, cy - r * 1.2);
+    ctx.stroke();
+
+    // Sparkle highlight.
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.34, cy - r * 0.32, r * 0.16, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   function drawEyes(head) {
